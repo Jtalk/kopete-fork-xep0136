@@ -247,6 +247,23 @@ public:
         QString after;
     };
 
+    /**
+     * @brief The RSMInfo struct keeps Result Set Management (XEP-0059) information
+     * received.
+     *
+     * When we request a collection (or collections), we specify maximum amount
+     * of entries we're ready to receive. This maximum is built-in and programmer
+     * should not take care of it. When server answers, it shows us number of
+     * items sent and their boundaries in the whole answer. For example, we can
+     * receive by 2 items, server has 4 items on it's side, then first answer
+     * would contain an RSM entry like:
+     *      RSMInfo { first => 0, last => 1, count => 4 }
+     * and a second one would contain one like:
+     *      RSMInfo { first => 2, last => 3, count => 4 }.
+     *
+     * Please, take note, first and last are the server-defined string literals and
+     * should not always be numbers, so, any conversion on them is prohibited.
+     */
     struct RSMInfo {
         RSMInfo() : count(0){}
         RSMInfo(const QString &_first, const QString &_last, uint _count)
@@ -258,6 +275,19 @@ public:
         uint count;
     };
 
+    /**
+     * @brief The ChatInfo struct keeps collection data.
+     *
+     * When we want to get some stored messages, we must first request a collections
+     * list. Collections are identified by both interlocutor's name and conversation
+     * starting time.
+     *
+     * A list of those structs will be received after requestCollections() call.
+     *
+     * Server answers to our collections request by a list of collections, which are
+     * converted into those structs by this class. Programmer should use those credentials
+     * to request a collection choosen via requestCollection().
+     */
     struct ChatInfo {
         ChatInfo() {}
         ChatInfo(const QString &_with, const KDateTime &_time)
@@ -267,6 +297,20 @@ public:
         KDateTime time;
     };
 
+    /**
+     * @brief The ChatItem struct keeps chat messages, one-by-one.
+     *
+     * When one had been received a list of collections, he would probably request
+     * one particular collection via requestCollection() call. If so,
+     * server would answer with a list of chat messages, which are converted
+     * to those structs by this class.
+     *
+     * Every item contains message body, time and boolean value describing if
+     * this message is received or sent by the current account.
+     *
+     * WARNING: Since XEP-0136 standard draft is not yet final, there might be
+     * some troubles with .time field.
+     */
     struct ChatItem {
         ChatItem() : isIncoming(true) {}
         ChatItem(KDateTime _offset, const QString &_body, bool _isIncoming)
@@ -287,7 +331,7 @@ public:
      *
      * You should use Kopete's JabberAccount instance to get proper root task.
      * Something like account()->rootTask(), or client()->account()->rootTask(),
-     * as done in protocols/jabber/jabbereditaccountwidget.cpp.
+     * as done in protocols/jabber/ui/jabbereditaccountwidget.cpp.
      */
     JT_Archive(Task *const parent);
 
@@ -300,22 +344,53 @@ public:
      */
     virtual QString requestPrefs();
 
+    /**
+     * @brief requestCollections depending on request parameters set.
+     * @return outgoing stanza's ID. Programmer may compare this to the one
+     * received via signal-slot mechanism to determine whether info received
+     * is one he had requested.
+     *
+     * You can find a bit more information in request/result structures, such as:
+     * @see CollectionsRequest
+     * @see ChatInfo
+     * @see RSMInfo
+     */
     virtual QString requestCollections(const CollectionsRequest&);
-    virtual QString requestCollection(const CollectionsRequest &params);
 
-    virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration);
-    virtual void updateAuto(bool isEnabled, const AutoScope = (AutoScope)-1);
-    virtual void updateStorage(const MethodType, const MethodUse);
+    /**
+     * @brief requestCollection requests chats which are belong to the collection specified.
+     *
+     * To find more about collections specification, @see CollectionsRequest.
+     *
+     * @return outgoing stanza's ID. Programmer may compare this to the one
+     * received via signal-slot mechanism to determine whether info received
+     * is one he had requested.
+     *
+     * Also take a look at those resulting structures:
+     * @see ChatItem
+     * @see RSMInfo
+     */
+    virtual QString requestCollection(const CollectionsRequest&);
 
     /**
      * @brief take is an overloaded XMPP::Task's method.
      * @return true if stanza received is supposed to be handled by XEP-0136 task and
      * is well-formed, false otherwise.
      *
+     * If it's not obvious if the stanza received is well-formed or not, it returns
+     * false so any class further in an inheritance tree could check this out.
+     *
      * This method checks if stanza received should be handled by this class. Look at
      * writePref() and handle*Tag() methods below for further details.
+     * @see writePref
+     * @see handleAutoTag
      */
     virtual bool take(const QDomElement &);
+
+protected:
+    virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration);
+    virtual void updateAuto(bool isEnabled, const AutoScope = (AutoScope)-1);
+    virtual void updateStorage(const MethodType, const MethodUse);
 
     /**
      * @brief writePrefs extracts every subtag from the QDomElement given and
@@ -334,7 +409,6 @@ public:
     bool collectionsListReceived(const QDomElement&, const QString &id);
     bool chatReceived(const QDomElement &, const QString &id);
 
-protected:
     /**
      * These functions are tags handlers. For every tag, writePref chooses proper
      * handler fron this list and calls it.
