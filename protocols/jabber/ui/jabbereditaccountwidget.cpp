@@ -495,12 +495,12 @@ void JabberEditAccountWidget::initAutomaticArchiving()
     // We hide those groups until preferences are delivered via signal-slot mechanism
     slotDisconnected();
 
-    connect(m_archiveManager, SIGNAL(automaticArchivingEnable(bool,JT_Archive::AutoScope)),
-            SLOT(slotAutomaticArchivingEnable(bool,JT_Archive::AutoScope)));
-    connect(m_archiveManager, SIGNAL(defaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,uint)),
-            SLOT(slotDefaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,uint)));
-    connect(m_archiveManager, SIGNAL(archivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse)),
-            SLOT(slotArchivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse)));
+    connect(m_archiveManager, SIGNAL(automaticArchivingEnable(bool,QString,JT_Archive::AutoScope)),
+            SLOT(slotAutomaticArchivingEnable(bool,QString,JT_Archive::AutoScope)));
+    connect(m_archiveManager, SIGNAL(defaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,QString,uint)),
+            SLOT(slotDefaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,QString,uint)));
+    connect(m_archiveManager, SIGNAL(archivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse,QString)),
+            SLOT(slotArchivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse,QString)));
 
     m_archiveManager->requestPrefs();
     JT_Archive::CollectionsRequest request("me@jtalk.me");
@@ -518,14 +518,14 @@ void JabberEditAccountWidget::updateArchiveManager()
     m_archiveManager->updateStorage(JT_Archive::MethodType_local,(JT_Archive::MethodUse)AALocalStorageBox->currentIndex());
 }
 
-void JabberEditAccountWidget::slotAutomaticArchivingEnable(bool isEnabled,JT_Archive::AutoScope scope)
+void JabberEditAccountWidget::slotAutomaticArchivingEnable(bool isEnabled, const QString &id, JT_Archive::AutoScope scope)
 {
     Q_UNUSED(scope)
     AAEnableCheckBox->setEnabled(true);
     AAEnableCheckBox->setChecked(isEnabled);
 }
 
-void JabberEditAccountWidget::slotDefaultPreferenceChanged(JT_Archive::DefaultSave saveMode,JT_Archive::DefaultOtr otr,uint expire)
+void JabberEditAccountWidget::slotDefaultPreferenceChanged(JT_Archive::DefaultSave saveMode,JT_Archive::DefaultOtr otr, const QString &id,uint expire)
 {
     Q_UNUSED(otr)
     Q_UNUSED(expire)
@@ -533,7 +533,7 @@ void JabberEditAccountWidget::slotDefaultPreferenceChanged(JT_Archive::DefaultSa
     AASavePolicyBox->setCurrentIndex((int)saveMode);
 }
 
-void JabberEditAccountWidget::slotArchivingMethodChanged(JT_Archive::MethodType method,JT_Archive::MethodUse use)
+void JabberEditAccountWidget::slotArchivingMethodChanged(JT_Archive::MethodType method,JT_Archive::MethodUse use, const QString &id)
 {
     QComboBox *neededBox = 0;
     switch (method) {

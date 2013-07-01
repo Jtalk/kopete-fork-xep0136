@@ -54,6 +54,30 @@
  * naming is sensitive and one ought to change anything carefuly. At first, we used
  * to handle those conversions manually, but dozens of 'toSomeCrap' and 'fromSomeCrap'
  * methods always make me sick.
+ *
+ * As any other Iris task, this class must be initialized with a root task pointer,
+ * you probably can obtain one via rootTask() method of account() or account()->client().
+ * @example
+ *      JT_Archive *archiving = new JT_Archive(account()->client()->rootTask());
+ *
+ * For concurrency support, this class uses Qt's signal-slot mechanism to receive
+ * remote server's answeres. For example, let's request our preferences using the archiving
+ * class pointer allocated above:
+ * @example
+ *      connect(archiving, SIGNAL(automaticArchivingEnable(bool,JT_Archive::AutoScope)),
+ *              SLOT(someSlot(bool)));
+ *      archiving->requestPrefs();
+ *
+ * Now, when server answers, you can find out whether archiving management is enabled for
+ * this contact on this server using someSlot():
+ * @example
+ *      void someSlot(bool isEnabled) {
+ *          m_archivingEnabled = isEnabled;
+ *      }
+ *
+ * Some parameters were implemented for standard compliance only and are ignored, read signals
+ * and/or request methods comments for more information.
+ *
  */
 class JT_Archive : public XMPP::Task
 {
@@ -217,10 +241,10 @@ public:
      * Results will be returned via signal-slot mechanism, take a look at signals
      * section of this file for further details.
      */
-    virtual void requestPrefs();
+    virtual QString requestPrefs();
 
-    virtual void requestCollections(const CollectionsRequest&);
-    virtual void requestCollection(const CollectionsRequest &params);
+    virtual QString requestCollections(const CollectionsRequest&);
+    virtual QString requestCollection(const CollectionsRequest &params);
 
     virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration);
     virtual void updateAuto(bool isEnabled, const AutoScope = (AutoScope)-1);
@@ -241,17 +265,17 @@ public:
      * calls writePref() with them.
      * @return true if every tag is recognized and parsed properly, false otherwise.
      */
-    bool writePrefs(const QDomElement&);
+    bool writePrefs(const QDomElement&, const QString &id);
 
     /**
      * @brief writePref parses tag name and calls proper handler from the handle{#name}Tag.
      * @return true if everything is parsed and recognized, false otherwise. If tag
      * name is correct, it returns handle*Tag function's result.
      */
-    bool writePref(const QDomElement&);
+    bool writePref(const QDomElement&, const QString &id);
 
-    bool collectionsListReceived(const QDomElement&);
-    bool chatReceived(const QDomElement &);
+    bool collectionsListReceived(const QDomElement&, const QString &id);
+    bool chatReceived(const QDomElement &, const QString &id);
 
 protected:
     /**
@@ -264,11 +288,11 @@ protected:
      * attribute is set, but invalid, signal will not be emitted and false will be
      * returned.
      */
-    bool handleAutoTag(const QDomElement&);
-    bool handleDefaultTag(const QDomElement&);
-    bool handleItemTag(const QDomElement&);
-    bool handleSessionTag(const QDomElement&);
-    bool handleMethodTag(const QDomElement&);
+    bool handleAutoTag(const QDomElement&, const QString &id);
+    bool handleDefaultTag(const QDomElement&, const QString &id);
+    bool handleItemTag(const QDomElement&, const QString &id);
+    bool handleSessionTag(const QDomElement&, const QString &id);
+    bool handleMethodTag(const QDomElement&, const QString &id);
 
     RSMInfo parseRSM(const QDomElement &);
     QList<ChatInfo> parseChatsInfo(const QDomElement &);
@@ -297,24 +321,24 @@ signals:
      * <auto save='isEnabled' scope='scope'/>
      * Scope is an optional parameter, if not received, will be set to AutoScopeGlobal.
      */
-    void automaticArchivingEnable(bool isEnabled,JT_Archive::AutoScope scope);
+    void automaticArchivingEnable(bool isEnabled, const QString &id, JT_Archive::AutoScope scope);
 
     /**
      * <default save='saveMode' otr='otr' expire='expire'/>
      * Expire is an optional parameter. If not received, will be set to infinity.
      */
-    void defaultPreferenceChanged(JT_Archive::DefaultSave saveMode,JT_Archive::DefaultOtr otr,uint expire);
+    void defaultPreferenceChanged(JT_Archive::DefaultSave saveMode,JT_Archive::DefaultOtr otr, const QString &id,uint expire);
 
     /**
      * <method type='method' use='use'/>
      * This setting shows archiving priorities. Server usually sends three of <method/> tags,
      * so receiver should be ready to get three continuous signals.
      */
-    void archivingMethodChanged(JT_Archive::MethodType method,JT_Archive::MethodUse use);
+    void archivingMethodChanged(JT_Archive::MethodType method,JT_Archive::MethodUse use, const QString &id);
 
-    void collectionsReceived(QList<JT_Archive::ChatInfo>, JT_Archive::RSMInfo);
+    void collectionsReceived(QList<JT_Archive::ChatInfo>, JT_Archive::RSMInfo, const QString &id);
 
-    void chatReceived(QList<JT_Archive::ChatItem>, JT_Archive::RSMInfo);
+    void chatReceived(QList<JT_Archive::ChatItem>, JT_Archive::RSMInfo, const QString &id);
 
 protected:
     typedef bool (JT_Archive::*AnswerHandler)(const QDomElement&, const QDomElement&, const QString&);

@@ -61,9 +61,9 @@ private slots:
     void slotConnected();
     void slotDisconnected();
 
-    void slotAutomaticArchivingEnable(bool,JT_Archive::AutoScope scope);
-    void slotDefaultPreferenceChanged(JT_Archive::DefaultSave saveMode,JT_Archive::DefaultOtr otr,uint expire);
-    void slotArchivingMethodChanged(JT_Archive::MethodType method,JT_Archive::MethodUse use);
+    void slotAutomaticArchivingEnable(bool, const QString &id, JT_Archive::AutoScope scope);
+    void slotDefaultPreferenceChanged(JT_Archive::DefaultSave saveMode, JT_Archive::DefaultOtr otr, const QString &id, uint expire);
+    void slotArchivingMethodChanged(JT_Archive::MethodType method, JT_Archive::MethodUse use, const QString &id);
 
 protected:
     void initAutomaticArchiving();

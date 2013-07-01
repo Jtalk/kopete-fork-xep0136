@@ -46,23 +46,26 @@ JT_Archive::JT_Archive(Task *const parent)
     // TODO: Make residential mode for acknowledgements handling.
 }
 
-void JT_Archive::requestPrefs()
+QString JT_Archive::requestPrefs()
 {
     // We must request our stored settings
     QDomElement request = uniformPrefsRequest();
     send(request);
+    return request.attribute("id");
 }
-#include <QDebug>
-void JT_Archive::requestCollections(const CollectionsRequest &params)
+
+QString JT_Archive::requestCollections(const CollectionsRequest &params)
 {
     QDomElement requestIq = uniformCollectionsRequest(params);
     send(requestIq);
+    return requestIq.attribute("id");
 }
 
-void JT_Archive::requestCollection(const JT_Archive::CollectionsRequest &params)
+QString JT_Archive::requestCollection(const JT_Archive::CollectionsRequest &params)
 {
     QDomElement requestIq = uniformChatsRequest(params);
     send(requestIq);
+    return requestIq.attribute("id");
 }
 
 QDomElement JT_Archive::uniformUpdate(const QDomElement &tag)
@@ -98,14 +101,13 @@ static inline bool isPref(const QDomElement &elem)
 
 bool JT_Archive::handleSet(const QDomElement &wholeElement, const QDomElement &noIq, const QString &sessionID)
 {
-    Q_UNUSED(sessionID)
     Q_UNUSED(wholeElement)
     // Server pushes us new preferences, let's save them!
     // Server must send us 'set' requests only for new settings
     // pushing, so, if there's no <pref> tag inside <iq>, the
     // stanza is incorrect and should not be further processed.
     if (isPref(noIq)) {
-        return writePrefs(noIq);
+        return writePrefs(noIq, sessionID);
     } else {
         return false;
     }
@@ -131,15 +133,13 @@ static inline bool isChat(const QDomElement &elem)
 
 bool JT_Archive::handleResult(const QDomElement &wholeElement, const QDomElement &noIq, const QString &sessionID)
 {
-    qDebug() << "HandleResult";
-    Q_UNUSED(sessionID)
     Q_UNUSED(wholeElement)
     if (isPref(noIq)) {
-        return writePrefs(noIq);
+        return writePrefs(noIq, sessionID);
     } else if (isList(noIq)) {
-        return collectionsListReceived(noIq);
+        return collectionsListReceived(noIq, sessionID);
     } else if (isChat(noIq)) {
-        return chatReceived(noIq);
+        return chatReceived(noIq, sessionID);
     } else return false;
 }
 
@@ -181,11 +181,9 @@ JT_Archive::AnswerHandler JT_Archive::chooseHandler(const QDomElement &e)
 bool JT_Archive::take(const QDomElement &e)
 {
     // TODO: Should we look through all tags instead?
-    qDebug() << "take";
     QDomElement internalTag = e.firstChild().toElement();
     QString id = e.attribute("id");
     if (hasValidNS(internalTag)) {
-        qDebug() << "hasValidNS";
         // TODO: If we should do something on acknowledgement package receiving?
         return (this->*chooseHandler(e))(e, internalTag, id);
     } else return false;
@@ -301,7 +299,7 @@ static inline bool hasScope(const QDomElement &autoTag)
 #define EXTRACT_TAG(type, tag, name) (type)s_ ## type ## Enum.keyToValue(STRCAT(STR(type) \
     , tag.attribute(name)).toAscii())
 
-bool JT_Archive::handleAutoTag(const QDomElement &autoTag)
+bool JT_Archive::handleAutoTag(const QDomElement &autoTag, const QString &id)
 {
     // This will return either received scope or static defaultScope variable,
     // if no correct scope is received;
@@ -315,7 +313,7 @@ bool JT_Archive::handleAutoTag(const QDomElement &autoTag)
     // valid.
     if (verifyAutoTag(autoTag)) {
         bool isAutoArchivingEnabled = QVariant(autoTag.attribute("save")).toBool();
-        emit automaticArchivingEnable(isAutoArchivingEnabled, scope);
+        emit automaticArchivingEnable(isAutoArchivingEnabled, id, scope);
         return true;
     } else {
         return false;
@@ -329,7 +327,7 @@ static inline bool verifyDefaultTag(const QDomElement &defaultTag)
             && defaultTag.attributes().contains("otr");
 }
 
-bool JT_Archive::handleDefaultTag(const QDomElement &defaultTag)
+bool JT_Archive::handleDefaultTag(const QDomElement &defaultTag, const QString &id)
 {
     DefaultSave saveMode = EXTRACT_TAG(DefaultSave, defaultTag, "save");
     DefaultOtr otrMode = EXTRACT_TAG(DefaultOtr, defaultTag, "otr");
@@ -339,20 +337,20 @@ bool JT_Archive::handleDefaultTag(const QDomElement &defaultTag)
         uint expire = defaultTag.attributes().contains("expire")
                 ? QVariant(defaultTag.attribute("scope")).toUInt()
                 : defaultExpiration;
-        emit defaultPreferenceChanged(saveMode, otrMode, expire);
+        emit defaultPreferenceChanged(saveMode, otrMode, id, expire);
         return true;
     } else {
         return false;
     }
 }
 
-bool JT_Archive::handleItemTag(const QDomElement &)
+bool JT_Archive::handleItemTag(const QDomElement &, const QString &id)
 {
     // TODO: Implement per-user storing settings
     return true;
 }
 
-bool JT_Archive::handleSessionTag(const QDomElement &)
+bool JT_Archive::handleSessionTag(const QDomElement &, const QString &id)
 {
     // TODO: Implement per-session storing settings
     return true;
@@ -364,12 +362,12 @@ static inline bool verifyMethodTag(const QDomElement &tag) {
             && tag.attributes().contains("use");
 }
 
-bool JT_Archive::handleMethodTag(const QDomElement &methodTag)
+bool JT_Archive::handleMethodTag(const QDomElement &methodTag, const QString &id)
 {
     MethodType method = EXTRACT_TAG(MethodType, methodTag, "type");
     MethodUse use = EXTRACT_TAG(MethodUse, methodTag, "use");
     if (verifyMethodTag(methodTag) && method != -1 && use != -1) {
-        emit archivingMethodChanged(method, use);
+        emit archivingMethodChanged(method, use, id);
         return true;
     } else return false;
 }
@@ -415,34 +413,34 @@ QList<JT_Archive::ChatInfo> JT_Archive::parseChatsInfo(const QDomElement &tags)
     return list;
 }
 
-bool JT_Archive::writePrefs(const QDomElement &tags)
+bool JT_Archive::writePrefs(const QDomElement &tags, const QString &id)
 {
     bool isSuccessful = true;
     DOM_FOREACH(tag, tags) {
-        bool isCurrentSuccessful = writePref(tag.toElement());
+        bool isCurrentSuccessful = writePref(tag.toElement(), id);
         isSuccessful = isSuccessful && isCurrentSuccessful;
     }
     return isSuccessful;
 }
 
-bool JT_Archive::writePref(const QDomElement &elem)
+bool JT_Archive::writePref(const QDomElement &elem, const QString &id)
 {
     TagNames tagName = (TagNames)s_TagNamesEnum.keyToValue(capitalize(elem.tagName()).toAscii());
     switch (tagName) {
-    case Auto: return handleAutoTag(elem);
-    case Default: return handleDefaultTag(elem);
-    case Item: return handleItemTag(elem);
-    case Session: return handleSessionTag(elem);
-    case Method: return handleMethodTag(elem);
+    case Auto: return handleAutoTag(elem, id);
+    case Default: return handleDefaultTag(elem, id);
+    case Item: return handleItemTag(elem, id);
+    case Session: return handleSessionTag(elem, id);
+    case Method: return handleMethodTag(elem, id);
     default: return false;
     }
 }
 
-bool JT_Archive::collectionsListReceived(const QDomElement &listTag)
+bool JT_Archive::collectionsListReceived(const QDomElement &listTag, const QString &id)
 {
     RSMInfo rsmInfo = parseRSM(listTag);
     QList<ChatInfo> list = parseChatsInfo(listTag);
-    emit collectionsReceived(list, rsmInfo);
+    emit collectionsReceived(list, rsmInfo, id);
     return true;
 }
 
@@ -473,13 +471,11 @@ static QList<JT_Archive::ChatItem> parseChatItems(const QDomElement &tags)
     return list;
 }
 
-bool JT_Archive::chatReceived(const QDomElement &retrieveTag)
+bool JT_Archive::chatReceived(const QDomElement &retrieveTag, const QString &id)
 {
-    qDebug() << "chatReceived";
     RSMInfo rsmInfo = parseRSM(retrieveTag);
     QList<ChatItem> list = parseChatItems(retrieveTag);
-    qDebug() << "Emit chatReceived";
-    emit chatReceived(list, rsmInfo);
+    emit chatReceived(list, rsmInfo, id);
     return true;
 }
 
