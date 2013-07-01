@@ -78,6 +78,21 @@
  * Some parameters were implemented for standard compliance only and are ignored, read signals
  * and/or request methods comments for more information.
  *
+ * You may notice enumerations are named strangely, but there is a cause. I'm using QMetaEnum
+ * for conversions between XML string literals and C++ enumerations. At first I used to
+ * handle this via capitalization: AutoScopeGlobal, for example. But I found out some servers
+ * (Prosody, for example, with its old mod_archive extension) are not fully standard-compliant,
+ * allowing us to add capitalized attributes to users' preferences, such as
+ * <method use=Concede type=Local/>, which is forbidden by the current standard draft and leads
+ * to methods duplication and unavailability of proper preferences. So I decided to move
+ * to the underlined enumerations, and I have been having no troubles with those enums since.
+ *
+ * WARNING: One should not leave this object to be created longer than needed, since Iris tasks
+ * are made like hell of a crap, and only first task presented will receive an incoming stanza.
+ * This behaviour will be getting around in the near (I hope) future.
+ *
+ * WARNING OTR negotation is not supported, so I'm not really sure whether using this class
+ * with OTR is safe, some investigation and testing is needed.
  */
 class JT_Archive : public XMPP::Task
 {
@@ -94,23 +109,46 @@ class JT_Archive : public XMPP::Task
     Q_ENUMS( MethodUse )
 public:
     /**
-     * @brief NS is an XML namespace title for XEP-0136.
+     * @brief ArchivingNS is an XML namespace title for XEP-0136.
      *
      * This variable is used in take() method to check if DOM element received
      * must be handled by this class. This is also used in uniformArchivingNS()
      * for proper outgoing stanzas creation.
+     *
+     * One is going to extend this class should use this variable in
+     * all the outgoing stanzas, according to the current draft, as, for example:
+     *      <iq type='set'>
+     *          <pref xmlns=#ArchivingNS>
+     *              <method type=local use=concede/>
+     *          </pref>
+     *      </iq>
      */
     static const QString ArchivingNS; // urn:xmpp:archive
-    static const QString ResultSetManagementNS;
-    //static const QString XMPP_UTC_DATETIME_FORMAT;
-    //static const QString XMPP_ZONE_DATETIME_FORMAT;
-    /**
-     * @brief This function searches for a subtag with xmlns=#{JT_Archive::NS} parameter.
-     * It's mainly a user-friendly wrapper for findSubTag() from Iris library.
-     */
-    static bool hasValidNS(const QDomElement&);
 
-    /// Possible tag names for XEP-0136.
+    /**
+     * @brief ResultSetManagementNS keeps XEP-0059 XML namespace.
+     *
+     * Use cases are obvious: tag <set/> with this namespace will be converted
+     * into JT_Archive::RSMInfo structure, letting programmers to handle
+     * resources offsets and counting.
+     *
+     * This method would be used like:
+     *      <iq type='get'>
+     *          <list with="some@contact.from">
+     *              <set xmlns=#ResultSetManagementNS>
+     *                  <max>30</max>
+     *              </set>
+     *          </list>
+     *      </iq>
+     */
+    static const QString ResultSetManagementNS; // http://jabber.org/protocol/rsm
+
+    /**
+     * WARNING: Only element itself is checked, child ones are not.
+     */
+    static bool hasArchivingNS(const QDomElement&);
+
+    /// Possible tag names for XEP-0136 preferences.
     enum TagNames {
         Auto,
         Default,
@@ -119,12 +157,12 @@ public:
         Session
     };
 
-    /// Scope of archiving setting: forever or for the current stream only.
+    /// Scope of archiving setting: forever or for a current stream only.
     enum AutoScope {
         AutoScope_global,
         AutoScope_stream
     };
-    /// It's set to AutoScopeGlobal by default.
+    /// It's set to AutoScope_global by default.
     static const AutoScope defaultScope;
 
     /// Which part of the messaging stream should we store?
@@ -166,7 +204,7 @@ public:
 
     /// Enumerations meta information. We use those variables for str-to-enum
     /// conversions. Changing their names is not permitted, since they're
-    /// related to enumerations' names via macroses (see jt_archive/preferences.cpp).
+    /// related to enumerations' names via macroses (see jt_archive.cpp).
     static const QMetaEnum s_TagNamesEnum;
     static const QMetaEnum s_AutoScopeEnum;
     static const QMetaEnum s_DefaultSaveEnum;
@@ -174,6 +212,25 @@ public:
     static const QMetaEnum s_MethodTypeEnum;
     static const QMetaEnum s_MethodUseEnum;
 
+    /**
+     * @brief The CollectionsRequest struct keeps request information, which is
+     * used in XML conversion.
+     *
+     * Not all values are mandatory, the only mandatory one for collections
+     * request is .with, which stores interlocutor's JID. You might also be
+     * interested in setting .start and .end to specify timing. Nevertheless,
+     * if .end attribute is skipped, server may return all the collections until
+     * now, so, be careful.
+     *
+     * @example
+     *      KDateTime start; start.fromString("1992-06-05T12:05:15Z");
+     *      CollectionsRequest request("test@contact.org", start);
+     *      archiveManager->requestCollections(request);
+     *
+     * This struct is used for both collections and chats requests.
+     * WARNING: you MUST specify the exact time, received via collections
+     * request, in chats request, or server won't find this collection.
+     */
     struct CollectionsRequest {
         CollectionsRequest() {}
         CollectionsRequest(const QString &_with,
