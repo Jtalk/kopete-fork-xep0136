@@ -512,6 +512,7 @@ void JabberEditAccountWidget::updateArchiveManager()
 
 void JabberEditAccountWidget::slotAutomaticArchivingEnable(bool isEnabled, const QString &id, JT_Archive::AutoScope scope)
 {
+    Q_UNUSED(id)
     Q_UNUSED(scope)
     AAEnableCheckBox->setEnabled(true);
     AAEnableCheckBox->setChecked(isEnabled);
@@ -519,6 +520,7 @@ void JabberEditAccountWidget::slotAutomaticArchivingEnable(bool isEnabled, const
 
 void JabberEditAccountWidget::slotDefaultPreferenceChanged(JT_Archive::DefaultSave saveMode,JT_Archive::DefaultOtr otr, const QString &id,uint expire)
 {
+    Q_UNUSED(id)
     Q_UNUSED(otr)
     Q_UNUSED(expire)
     AASavePolicyBox->setEnabled(true);
@@ -527,6 +529,7 @@ void JabberEditAccountWidget::slotDefaultPreferenceChanged(JT_Archive::DefaultSa
 
 void JabberEditAccountWidget::slotArchivingMethodChanged(JT_Archive::MethodType method,JT_Archive::MethodUse use, const QString &id)
 {
+    Q_UNUSED(id)
     QComboBox *neededBox = 0;
     switch (method) {
     case JT_Archive::MethodType_auto: neededBox = AARemoteStorageBox; break;

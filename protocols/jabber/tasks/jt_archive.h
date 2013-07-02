@@ -31,6 +31,8 @@
 #include <QtCore/QMetaObject>
 #include <QtXml/QDomElement>
 
+#include <QXmlSchemaValidator>
+
 #include <KDateTime>
 
 #include "xmpp_task.h"
@@ -42,7 +44,7 @@
  *
  * One can create an instance to either check or modify archiving preferences.
  * Since all XEP-0136 preferences are stored on the server, we need no resident
- * module for this extension.
+ * module for this extension (but we actually do have).
  *
  * Because of this, I marked 'static' as much methods as possible -- minimal
  * on-create overhead.
@@ -62,7 +64,7 @@
  *
  * For concurrency support, this class uses Qt's signal-slot mechanism to receive
  * remote server's answeres. For example, let's request our preferences using the archiving
- * class pointer allocated above:
+ * class pointer got above:
  * @example
  *      connect(archiving, SIGNAL(automaticArchivingEnable(bool,JT_Archive::AutoScope)),
  *              SLOT(someSlot(bool)));
@@ -87,11 +89,23 @@
  * to methods duplication and unavailability of proper preferences. So I decided to move
  * to the underlined enumerations, and I have been having no troubles with those enums since.
  *
- * WARNING: One should not leave this object to be created longer than needed, or ever create one
+ * The enumerations naming convention is quite simple: it's related to tag's names:
+ *      <method type="local"/> would be MethodType_local, for example.
+ *
+ * Nota bene, preferences tags are exclusive separate entities which are not match this rule. One
+ * should never really use them ouside this class.
+ *
+ * You really may not take care of ID's returning with any request*() method, they're here
+ * just for a kind of a verification, but it's not really required, as for me. In fact, I ignore
+ * them in JabberEditAccount dialog myself.
+ *
+ * TODO: XML Schema validation in accordance http://xmpp.org/extensions/xep-0136.html#schema
+ *
+ * @warning One should not leave this object to be created longer than needed, or ever create one
  * if client's archivingManager is available. since Iris tasks are made like hell of a crap,
  * and only first task presented will receive an incoming stanza.
  *
- * WARNING OTR negotiation is not supported, so I'm not really sure whether using this class
+ * @warning OTR negotiation is not supported, so I'm not really sure whether using this class
  * with OTR is safe, some investigation and testing is needed.
  */
 class JT_Archive : public XMPP::Task
@@ -144,7 +158,7 @@ public:
     static const QString ResultSetManagementNS; // http://jabber.org/protocol/rsm
 
     /**
-     * WARNING: Only element itself is checked, child ones are not.
+     * @warning Only element itself is checked, child ones are not.
      */
     static bool hasArchivingNS(const QDomElement&);
 
@@ -219,8 +233,8 @@ public:
      * Not all values are mandatory, the only mandatory one for collections
      * request is .with, which stores interlocutor's JID. You might also be
      * interested in setting .start and .end to specify timing. Nevertheless,
-     * if .end attribute is skipped, server may return all the collections until
-     * now, so, be careful.
+     * if .end attribute is skipped, server would probably return all the
+     * collections until now, so, be careful.
      *
      * @example
      *      KDateTime start; start.fromString("1992-06-05T12:05:15Z");
@@ -228,7 +242,7 @@ public:
      *      archiveManager->requestCollections(request);
      *
      * This struct is used for both collections and chats requests.
-     * WARNING: you MUST specify the exact time, received via collections
+     * @warning you MUST specify the exact time, received via collections
      * request, in chats request, or server won't find this collection.
      */
     struct CollectionsRequest {
@@ -308,17 +322,17 @@ public:
      * Every item contains message body, time and boolean value describing if
      * this message is received or sent by the current account.
      *
-     * WARNING: Since XEP-0136 standard draft is not yet final, there might be
+     * @warning Since XEP-0136 standard draft is not yet final, there might be
      * some troubles with .time field.
      */
     struct ChatItem {
         ChatItem() : isIncoming(true) {}
-        ChatItem(KDateTime _offset, const QString &_body, bool _isIncoming)
+        ChatItem(const KDateTime &_offset, const QString &_body, bool _isIncoming)
             : time(_offset),
               body(_body),
               isIncoming(_isIncoming) {}
-        QString body;
         KDateTime time;
+        QString body;
         bool isIncoming;
     };
 
@@ -341,6 +355,10 @@ public:
      *
      * Results will be returned via signal-slot mechanism, take a look at signals
      * section of this file for further details.
+     *
+     * @warning Those preferences should not be cached anywhere -- since every client
+     * may override them, programmer should always request them on-demand instead of
+     * storing somewhere.
      */
     virtual QString requestPrefs();
 
@@ -387,16 +405,54 @@ public:
      */
     virtual bool take(const QDomElement &);
 
+    // TODO: We need <modified> tag support, but I shan't implement it until current
+    // changes would be presented in history plugin.
+
+    /**
+     * @brief updateDefault uniforms preferences update stanza with saving and OTR modes
+     * and sends it to the server.
+     *
+     * This method's parameters are quite obvious. Nevertheless what was said above (this
+     * class do not respect OTR and expiration preferences), this method sends OTR parameter
+     * (it's mandatory in the current XEP-0136 draft). Expiration is completely ignored, since
+     * it doesn't seem quite useful. It can be easily added when Kopete UI will support
+     * it's setting.
+     *
+     * The reason for ignoring expiration is: unsigned int do not support negative values, so
+     * caller can't really let us know if expiration should be ignored or set to the value
+     * provided.
+     *
+     * @see JabberEditAccountWidget::updateArchiveManager()
+     */
     virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration);
-    virtual void updateAuto(bool isEnabled, const AutoScope = (AutoScope)-1);
+
+    /**
+     * @brief updateAuto uniforms preferences update for enabling/disabling automatic archiving.
+     * @param scope shows if messages must be archived always, or for the current stream only.
+     *
+     * This parameter is ignored by default (set to -1) and is not presented in UI, but it can
+     * be set normally here. Nevertheless, setting this is not recommended -- Keep It Simple,
+     * Some-guy-I-don't-even-know.
+     */
+    virtual void updateAuto(bool isEnabled, const AutoScope scope = (AutoScope)-1);
+
+    /**
+     * Looking at those methods above, as well as at the XEP-0136 draft, you already know
+     * what this method does, don't you? ;-)
+     *
+     * Both arguments are mandatory, setting one of them to -1 will lead to undefined
+     * behaviour.
+     */
     virtual void updateStorage(const MethodType, const MethodUse);
 
 protected:
-
     /**
      * @brief writePrefs extracts every subtag from the QDomElement given and
      * calls writePref() with them.
      * @return true if every tag is recognized and parsed properly, false otherwise.
+     *
+     * Nota bene, writePrefs() do not stop processing if one of provided tags is invalid,
+     * it just skips it and continues execution. It will return false in this case though.
      */
     bool writePrefs(const QDomElement&, const QString &id);
 
@@ -407,7 +463,22 @@ protected:
      */
     bool writePref(const QDomElement&, const QString &id);
 
+    /**
+     * @brief collectionsListReceived extracts RSM and collections info and sends them via
+     * collectionsReceived() signal.
+     * @param id is an XMPP stanza's ID which is here for verification and would be sent via
+     * the signal without changes.
+     * @return true
+     *
+     * TODO: check parsing results and return proper value instead of a 'true' constant.
+     */
     bool collectionsListReceived(const QDomElement&, const QString &id);
+
+    /**
+     * @see collectionsListReceived()
+     *
+     * This does the same but emits chatReceived() and sends collection's messages through.
+     */
     bool chatReceived(const QDomElement &, const QString &id);
 
     /**
@@ -426,27 +497,123 @@ protected:
     bool handleSessionTag(const QDomElement&, const QString &id);
     bool handleMethodTag(const QDomElement&, const QString &id);
 
+    /**
+     * @brief parseRSM converts XML to Result Set Management struct.
+     * @see RSMInfo
+     */
     RSMInfo parseRSM(const QDomElement &);
-    QList<ChatInfo> parseChatsInfo(const QDomElement &);
 
     /**
-     * @brief uniformArchivingNS creates DOM element <tagName xmlns=NS></tagName>.
+     * @brief uniformArchivingNS creates DOM element <#tagName xmlns=#ArchivingNS></#tagName>.
      * This function uses static NS element of the archiving class.
      * Result can be used to embed any XEP-0136 data.
      */
     QDomElement uniformArchivingNS(const QString &tagName);
+
+    /**
+     * @brief uniformPrefsRequest creates an empty <pref/> tag inside proper <iq/>.
+     *
+     * @return ready-to-be-sent <iq/> element.
+     *
+     * This would be like:
+     *      <iq type='get'>
+     *          <pref xmlns=#ArchivingNS/>
+     *      </iq>
+     */
     QDomElement uniformPrefsRequest();
-    QDomElement uniformAutoTag(bool, AutoScope);
-    QDomElement uniformDefaultTag(DefaultSave, DefaultOtr, uint expiration);
-    QDomElement uniformMethodTag(MethodType, MethodUse);
+
+    /**
+     * @brief uniformUpdate creates a preferences update skeleton and embeds
+     * it's argument into <pref/> tag.
+     *
+     * @return ready-to-be-sent <iq/> element.
+     *
+     * This woule be like:
+     *      <iq type='set'>
+     *          <pref xmlns=#ArchivingNS>
+     *              #argument
+     *          </pref>
+     *      </iq>
+     */
     QDomElement uniformUpdate(const QDomElement&);
+
+    /**
+     * @see CollectionsRequest
+     * @return ready-to-be-sent <iq/> element.
+     *
+     * This functions firstly makes an almost-empty <list/> tag with
+     * uniformSkeletonCollectionsRequest(), then embeds #params into it, encloses it
+     * into an <iq/> tag and returns the whole stanza.
+     * @see uniformSkeletonCollectionsRequest()
+     */
     QDomElement uniformCollectionsRequest(const CollectionsRequest &params);
+
+    /**
+     * @see uniformCollectionsRequest()
+     * @return ready-to-be-sent <iq/> element.
+     *
+     * This one is quite simular to the uniformCollectionsRequest() method, but
+     * uses uniformSkeletonChatsRequest() for initial tag creation instead.
+     */
     QDomElement uniformChatsRequest(const CollectionsRequest &params);
+
+    /**
+     * @brief uniformRsmNS builds an empty tag with ResultSetManagementNS as an XML namespace.
+     *
+     * This would be like:
+     *      <#tagName xmlns=#ResultSetManagementNS/>
+     *
+     * You probably want to use it with a 'set' tag name.
+     */
     QDomElement uniformRsmNS(const QString &tagName);
+
+    /**
+     * @brief uniformRsmMax builds a <max/> tag with a built-in RSM maximum embedded.
+     *
+     * This would be like:
+     *      <max>#RSMMax</max>
+     */
     QDomElement uniformRsmMax(uint max);
-    QDomElement uniformSkeletonCollectionsRequest(const QString &with);
-    QDomElement uniformSkeletonChatsRequest(const QString &with);
+
+    /**
+     * @brief uniformRsm builds a whole Result Set Management tree with an RSM maximum built-in.
+     * @param after shows which element was the last in a previous request, so server could continue
+     * sending those items from the last one.
+     *
+     * Result Set Management seems like a TCP: it splits the whole message by small parts and sends
+     * them one-by-one. Client should specify, which part was the last in the previous transaction,
+     * so server could find out where to start. See RSMInfo documentation for futher explaination and
+     * examples.
+     * @see RSMInfo
+     */
     QDomElement uniformRsm(const QString &after = QString());
+
+    /**
+     * @param with an interlocutor's JID
+     * @return a barebone <list/> tag ready to be filled by appropriate data.
+     *
+     * This woule be like:
+     *      <list xmlns=#ArchivingNS with=#with/>
+     */
+    QDomElement uniformSkeletonCollectionsRequest(const QString &with);
+
+    /**
+     * It's like uniformSkeletonCollectionsRequest(), but returns <retrieve/> tag instead.
+     * @see uniformSkeletonCollectionsRequest()
+     */
+    QDomElement uniformSkeletonChatsRequest(const QString &with);
+
+    /**
+     * @brief fillCollectionRequest fills an XML tree with parameters provided.
+     * @param tag is usually a <list/> or <retrieve/> tag.
+     * @return filled tag.
+     *
+     * Since collections and chats requests are quite same, except their tags names,
+     * we may now use one common method to fill both.
+     *
+     * @warning This method modifies tag provided and returns it's reference.
+     */
+    QDomElement &fillCollectionRequest(const CollectionsRequest &params, QDomElement &tag);
 
 signals:
     /**
@@ -474,6 +641,11 @@ signals:
 
 protected:
     typedef bool (JT_Archive::*AnswerHandler)(const QDomElement&, const QDomElement&, const QString&);
+    /**
+     * @brief chooseHandler chooses proper handler from handle#Tag methods family.
+     * @return pointer to the proper method of this class.
+     * @warning This is magic, please, do not touch unless you're sure what you're doing.
+     */
     AnswerHandler chooseHandler(const QDomElement&);
 
 private:

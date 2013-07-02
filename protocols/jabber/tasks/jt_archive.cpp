@@ -20,6 +20,7 @@
 
 const uint RSM_MAX = 100;
 
+// This 'magic' just extracts QMetaEnum from an object's metainformation; looks awful, works great though.
 const QMetaEnum JT_Archive::s_TagNamesEnum = JT_Archive::staticMetaObject.enumerator( JT_Archive::staticMetaObject.indexOfEnumerator( "TagNames" ) );
 const QMetaEnum JT_Archive::s_AutoScopeEnum = JT_Archive::staticMetaObject.enumerator( JT_Archive::staticMetaObject.indexOfEnumerator( "AutoScope" ) );
 const QMetaEnum JT_Archive::s_DefaultSaveEnum = JT_Archive::staticMetaObject.enumerator( JT_Archive::staticMetaObject.indexOfEnumerator( "DefaultSave" ) );
@@ -27,13 +28,12 @@ const QMetaEnum JT_Archive::s_DefaultOtrEnum = JT_Archive::staticMetaObject.enum
 const QMetaEnum JT_Archive::s_MethodTypeEnum = JT_Archive::staticMetaObject.enumerator( JT_Archive::staticMetaObject.indexOfEnumerator( "MethodType" ) );
 const QMetaEnum JT_Archive::s_MethodUseEnum = JT_Archive::staticMetaObject.enumerator( JT_Archive::staticMetaObject.indexOfEnumerator( "MethodUse" ) );
 
+// Why have I set this to 'global'? Who knows, this thing just doesn't go anywhere right now, we ignore it.
 const JT_Archive::AutoScope JT_Archive::defaultScope = JT_Archive::AutoScope_global;
 
-/// Static member initialization, XMPP NS field for archiving stanzas
+// XMPP NS field for Archiving and Result Set Management stanzas
 const QString JT_Archive::ArchivingNS = "urn:xmpp:archive";
 const QString JT_Archive::ResultSetManagementNS = "http://jabber.org/protocol/rsm";
-//const QString JT_Archive::XMPP_UTF_DATETIME_FORMAT = "%Y.%m.%dT%H:%M:%SZ";
-//const QString JT_Archive::XMPP_ZONE_DATETIME_FORMAT = "%Y.%m.%dT%H:%M:%S%:z";
 
 bool JT_Archive::hasArchivingNS(const QDomElement &e)
 {
@@ -43,12 +43,11 @@ bool JT_Archive::hasArchivingNS(const QDomElement &e)
 JT_Archive::JT_Archive(Task *const parent)
     : Task(parent)
 {
-    // TODO: Make residential mode for acknowledgements handling.
 }
 
 QString JT_Archive::requestPrefs()
 {
-    // We must request our stored settings
+    // We must request our server-side stored settings
     QDomElement request = uniformPrefsRequest();
     send(request);
     return request.attribute("id");
@@ -88,7 +87,6 @@ QDomElement JT_Archive::uniformArchivingNS(const QString &tagName)
 
 QDomElement JT_Archive::uniformPrefsRequest()
 {
-    // TODO: take care of the proper ID.
     QDomElement prefsRequest = createIQ(doc(), "get", "", client()->genUniqueId());
     prefsRequest.appendChild( uniformArchivingNS("pref") );
     return prefsRequest;
@@ -115,6 +113,7 @@ bool JT_Archive::handleSet(const QDomElement &wholeElement, const QDomElement &n
 
 bool JT_Archive::handleGet(const QDomElement &wholeElement, const QDomElement &noIq, const QString &sessionID)
 {
+    Q_UNUSED(wholeElement)
     Q_UNUSED(sessionID)
     Q_UNUSED(noIq)
     // That's weird. Server is not supposed to send GET IQs
@@ -201,34 +200,33 @@ static KDateTime XMPPtoDateTime(const QString &dt)
     return KDateTime::fromString(dt, KDateTime::RFC3339Date);
 }
 
-// TODO: Merge two methods below
+QDomElement& JT_Archive::fillCollectionRequest(const CollectionsRequest &params, QDomElement &tag)
+{
+    if (params.start.isValid()) {
+        tag.setAttribute("start", DateTimeToXMPP(params.start));
+    }
+    if (params.end.isValid()) {
+        tag.setAttribute("end", DateTimeToXMPP(params.end));
+    }
+    tag.appendChild( uniformRsm(params.after) );
+    return tag;
+}
+
 QDomElement JT_Archive::uniformCollectionsRequest(const CollectionsRequest &params)
 {
     QDomElement listTag = uniformSkeletonCollectionsRequest(params.with);
-    if (params.start.isValid()) {
-        listTag.setAttribute("start", DateTimeToXMPP(params.start));
-    }
-    if (params.end.isValid()) {
-        listTag.setAttribute("end", DateTimeToXMPP(params.end));
-    }
-    listTag.appendChild( uniformRsm(params.after) );
+    QDomElement &filledListTag = fillCollectionRequest(params, listTag);
     QDomElement iq = createIQ(doc(), "get", "", client()->genUniqueId());
-    iq.appendChild(listTag);
+    iq.appendChild(filledListTag);
     return iq;
 }
 
-QDomElement JT_Archive::uniformChatsRequest(const JT_Archive::CollectionsRequest &params)
+QDomElement JT_Archive::uniformChatsRequest(const CollectionsRequest &params)
 {
     QDomElement retrieveTag = uniformSkeletonChatsRequest(params.with);
-    if (params.start.isValid()) {
-        retrieveTag.setAttribute("start", DateTimeToXMPP(params.start));
-    }
-    if (params.end.isValid()) {
-        retrieveTag.setAttribute("end", DateTimeToXMPP(params.end));
-    }
-    retrieveTag.appendChild( uniformRsm(params.after) );
+    QDomElement &filledRetrieveTag = fillCollectionRequest(params, retrieveTag);
     QDomElement iq = createIQ(doc(), "get", "", client()->genUniqueId());
-    iq.appendChild(retrieveTag);
+    iq.appendChild(filledRetrieveTag);
     return iq;
 }
 
@@ -276,7 +274,9 @@ QDomElement JT_Archive::uniformRsm(const QString &after)
         resultSetManagement.appendChild(afterTag);
     }
     return resultSetManagement;
-}static inline QString capitalize(const QString &str)
+}
+
+static inline QString capitalize(const QString &str)
 {
     QString lowerStr = str.toLower();
     lowerStr[0] = lowerStr[0].toUpper();
@@ -346,12 +346,14 @@ bool JT_Archive::handleDefaultTag(const QDomElement &defaultTag, const QString &
 
 bool JT_Archive::handleItemTag(const QDomElement &, const QString &id)
 {
+    Q_UNUSED(id)
     // TODO: Implement per-user storing settings
     return true;
 }
 
 bool JT_Archive::handleSessionTag(const QDomElement &, const QString &id)
 {
+    Q_UNUSED(id)
     // TODO: Implement per-session storing settings
     return true;
 }
@@ -398,13 +400,13 @@ JT_Archive::RSMInfo JT_Archive::parseRSM(const QDomElement &elem)
 
 #define DOM_FOREACH(var, domElement) for(QDomNode var = domElement.firstChild(); !var.isNull(); var = var.nextSibling())
 
-QList<JT_Archive::ChatInfo> JT_Archive::parseChatsInfo(const QDomElement &tags)
+static QList<JT_Archive::ChatInfo> parseChatsInfo(const QDomElement &tags)
 {
-    QList<ChatInfo> list;
+    QList<JT_Archive::ChatInfo> list;
     DOM_FOREACH(chatTag, tags) {
         QDomElement currentElem = chatTag.toElement();
         if (currentElem.tagName() == "chat") {
-            ChatInfo info;
+            JT_Archive::ChatInfo info;
             info.with = currentElem.attribute("with");
             info.time = XMPPtoDateTime( currentElem.attribute("start") );
             list.append(info);
