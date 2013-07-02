@@ -121,27 +121,19 @@ JabberEditAccountWidget::JabberEditAccountWidget (JabberProtocol * proto, Jabber
 	}
 
     // Setup automatic archiving settings in accordance with server settings
-    XMPP::Task *root = account()->client()->rootTask();
-    if (root) {
-        m_archiveManager = new JT_Archive(root);
-        if (account()->isConnected()) {
-            slotConnected();
-        } else {
-            // Hideout all the setting because automatic archiving is mainly a server-side thing
-            slotDisconnected();
-        }
-
-        connect(account()->client(), SIGNAL(connected()), SLOT(slotConnected()));
-        connect(account()->client(), SIGNAL(csDisconnected()), SLOT(slotDisconnected()));
+    if (account()->isConnected()) {
+        slotConnected();
     } else {
-        m_archiveManager = 0;
+        // Hideout all the setting because automatic archiving is mainly a server-side thing
         slotDisconnected();
     }
+
+    connect(account()->client(), SIGNAL(connected()), SLOT(slotConnected()));
+    connect(account()->client(), SIGNAL(csDisconnected()), SLOT(slotDisconnected()));
 }
 
 JabberEditAccountWidget::~JabberEditAccountWidget ()
 {
-    delete m_archiveManager;
 }
 
 
@@ -495,27 +487,27 @@ void JabberEditAccountWidget::initAutomaticArchiving()
     // We hide those groups until preferences are delivered via signal-slot mechanism
     slotDisconnected();
 
-    connect(m_archiveManager, SIGNAL(automaticArchivingEnable(bool,QString,JT_Archive::AutoScope)),
+    connect(account()->client()->archivingManager(), SIGNAL(automaticArchivingEnable(bool,QString,JT_Archive::AutoScope)),
             SLOT(slotAutomaticArchivingEnable(bool,QString,JT_Archive::AutoScope)));
-    connect(m_archiveManager, SIGNAL(defaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,QString,uint)),
+    connect(account()->client()->archivingManager(), SIGNAL(defaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,QString,uint)),
             SLOT(slotDefaultPreferenceChanged(JT_Archive::DefaultSave,JT_Archive::DefaultOtr,QString,uint)));
-    connect(m_archiveManager, SIGNAL(archivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse,QString)),
+    connect(account()->client()->archivingManager(), SIGNAL(archivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse,QString)),
             SLOT(slotArchivingMethodChanged(JT_Archive::MethodType,JT_Archive::MethodUse,QString)));
 
-    m_archiveManager->requestPrefs();
+    account()->client()->archivingManager()->requestPrefs();
     JT_Archive::CollectionsRequest request("me@jtalk.me");
-    m_archiveManager->requestCollections(request);
+    account()->client()->archivingManager()->requestCollections(request);
 }
 
 void JabberEditAccountWidget::updateArchiveManager()
 {
     // We don't want to affect scope value, -1 will make JT_Archive skip this parameter.
-    m_archiveManager->updateAuto(AAEnableCheckBox->isEnabled(), (JT_Archive::AutoScope)-1);
+    account()->client()->archivingManager()->updateAuto(AAEnableCheckBox->isEnabled(), (JT_Archive::AutoScope)-1);
     // OTR setting is not implemented, see protocols/jabber/tasks/jt_archive.h for details.
-    m_archiveManager->updateDefault((JT_Archive::DefaultSave)AASavePolicyBox->currentIndex(), JT_Archive::DefaultOtr_approve, (uint)-1);
+    account()->client()->archivingManager()->updateDefault((JT_Archive::DefaultSave)AASavePolicyBox->currentIndex(), JT_Archive::DefaultOtr_approve, (uint)-1);
     // Manual archiving is not implemented (mainly due to it's uselessness.
-    m_archiveManager->updateStorage(JT_Archive::MethodType_auto, (JT_Archive::MethodUse)AARemoteStorageBox->currentIndex());
-    m_archiveManager->updateStorage(JT_Archive::MethodType_local,(JT_Archive::MethodUse)AALocalStorageBox->currentIndex());
+    account()->client()->archivingManager()->updateStorage(JT_Archive::MethodType_auto, (JT_Archive::MethodUse)AARemoteStorageBox->currentIndex());
+    account()->client()->archivingManager()->updateStorage(JT_Archive::MethodType_local,(JT_Archive::MethodUse)AALocalStorageBox->currentIndex());
 }
 
 void JabberEditAccountWidget::slotAutomaticArchivingEnable(bool isEnabled, const QString &id, JT_Archive::AutoScope scope)

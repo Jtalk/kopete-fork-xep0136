@@ -35,7 +35,7 @@ const QString JT_Archive::ResultSetManagementNS = "http://jabber.org/protocol/rs
 //const QString JT_Archive::XMPP_UTF_DATETIME_FORMAT = "%Y.%m.%dT%H:%M:%SZ";
 //const QString JT_Archive::XMPP_ZONE_DATETIME_FORMAT = "%Y.%m.%dT%H:%M:%S%:z";
 
-bool JT_Archive::hasValidNS(const QDomElement &e)
+bool JT_Archive::hasArchivingNS(const QDomElement &e)
 {
     return e.attribute("xmlns") == ArchivingNS;
 }
@@ -183,7 +183,7 @@ bool JT_Archive::take(const QDomElement &e)
     // TODO: Should we look through all tags instead?
     QDomElement internalTag = e.firstChild().toElement();
     QString id = e.attribute("id");
-    if (hasValidNS(internalTag)) {
+    if (hasArchivingNS(internalTag)) {
         // TODO: If we should do something on acknowledgement package receiving?
         return (this->*chooseHandler(e))(e, internalTag, id);
     } else return false;

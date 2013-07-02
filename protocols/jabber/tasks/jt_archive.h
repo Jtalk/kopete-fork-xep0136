@@ -56,9 +56,9 @@
  * methods always make me sick.
  *
  * As any other Iris task, this class must be initialized with a root task pointer,
- * you probably can obtain one via rootTask() method of account() or account()->client().
+ * but you'd probably use the object provided by jabber client, such as:
  * @example
- *      JT_Archive *archiving = new JT_Archive(account()->client()->rootTask());
+ *      JT_Archive *archiving = account()->client()->archivingManager();
  *
  * For concurrency support, this class uses Qt's signal-slot mechanism to receive
  * remote server's answeres. For example, let's request our preferences using the archiving
@@ -87,11 +87,11 @@
  * to methods duplication and unavailability of proper preferences. So I decided to move
  * to the underlined enumerations, and I have been having no troubles with those enums since.
  *
- * WARNING: One should not leave this object to be created longer than needed, since Iris tasks
- * are made like hell of a crap, and only first task presented will receive an incoming stanza.
- * This behaviour will be getting around in the near (I hope) future.
+ * WARNING: One should not leave this object to be created longer than needed, or ever create one
+ * if client's archivingManager is available. since Iris tasks are made like hell of a crap,
+ * and only first task presented will receive an incoming stanza.
  *
- * WARNING OTR negotation is not supported, so I'm not really sure whether using this class
+ * WARNING OTR negotiation is not supported, so I'm not really sure whether using this class
  * with OTR is safe, some investigation and testing is needed.
  */
 class JT_Archive : public XMPP::Task
@@ -387,10 +387,11 @@ public:
      */
     virtual bool take(const QDomElement &);
 
-protected:
     virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration);
     virtual void updateAuto(bool isEnabled, const AutoScope = (AutoScope)-1);
     virtual void updateStorage(const MethodType, const MethodUse);
+
+protected:
 
     /**
      * @brief writePrefs extracts every subtag from the QDomElement given and

@@ -49,7 +49,7 @@ class JabberClient::Private
 public:
 	Private()
 	: jabberClient(0L), jabberClientStream(0L), jabberClientConnector(0L), jabberTLS(0L),
-		       jabberTLSHandler(0L), privacyManager(0L)
+      jabberTLSHandler(0L), privacyManager(0L), archivingManager(0L)
 	{}
 	~Private()
 	{
@@ -63,6 +63,7 @@ public:
 		delete jabberClientConnector;
 		delete jabberTLSHandler;
 		delete jabberTLS;
+        delete archivingManager;
 		// privacyManager will be deleted with jabberClient, its parent's parent
 	}
 
@@ -79,6 +80,7 @@ public:
 	XMPP::QCATLSHandler *jabberTLSHandler;
 	QCA::Initializer qcaInit;
 	PrivacyManager *privacyManager;
+    JT_Archive *archivingManager;
 
 	// ignore TLS warnings
 	bool ignoreTLSWarnings;
@@ -582,6 +584,11 @@ XMPP::Task *JabberClient::rootTask () const
 
 }
 
+JT_Archive *JabberClient::archivingManager() const
+{
+    return d->archivingManager;
+}
+
 XMPP::FileTransferManager *JabberClient::fileTransferManager () const
 {
 
@@ -707,6 +714,9 @@ JabberClient::ErrorCode JabberClient::connect ( const XMPP::Jid &jid, const QStr
 	 */
 	d->privacyManager = new PrivacyManager ( rootTask() );
 
+    // Must be initialized AFTER jabberClient, since it uses it's rootTask().
+    d->archivingManager = new JT_Archive(rootTask());
+
 	/*
 	 * Enable file transfer (IP and server will be set after connection
 	 * has been established.
@@ -817,13 +827,13 @@ JabberClient::ErrorCode JabberClient::connect ( const XMPP::Jid &jid, const QStr
 	features.addFeature("jabber:x:signed");                        // XEP-0027: Current OpenPGP Usage
 	features.addFeature("urn:xmpp:delay");                         // XEP-0203: Delayed Delivery
 	features.addFeature("urn:xmpp:receipts");                      // XEP-0184: Message Delivery Receipts
+    features.addFeature(JT_Archive::ArchivingNS);                  // XEP-0136: Message Archiving
 	d->jabberClient->setFeatures(features);
 
 	// Additional features supported by libiris, but not yet by Kopete:
 	// http://jabber.org/protocol/pubsub                           // XEP-0060: Publish-Subscribe
 	// http://jabber.org/protocol/address                          // XEP-0033: Extended Stanza Addressing
 	// http://jabber.org/protocol/rosterx                          // XEP-0144: Roster Item Exchange
-
 
 	d->jabberClient->connectToServer ( d->jabberClientStream, jid, auth );
 

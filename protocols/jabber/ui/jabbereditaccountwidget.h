@@ -70,8 +70,7 @@ protected:
     void updateArchiveManager();
 
 private:
-	JabberProtocol *m_protocol;
-    JT_Archive *m_archiveManager;
+    JabberProtocol *m_protocol;
 
 
 #ifdef JINGLE_SUPPORT
