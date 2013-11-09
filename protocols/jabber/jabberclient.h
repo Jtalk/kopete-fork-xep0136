@@ -31,6 +31,8 @@
 #include <xmpp.h>
 #include <s5b.h>
 
+#include "tasks/jt_archive.h"
+
 #include <QtCrypto>
 
 #include <kopete_export.h>
@@ -351,6 +353,11 @@ public:
 	 * you want to start.
 	 */
 	XMPP::Task *rootTask () const;
+
+    /**
+     * Server-side archiving management task (XEP-0136).
+     */
+    JT_Archive *archivingManager() const;
 
 	/**
 	 * Returns the file transfer manager

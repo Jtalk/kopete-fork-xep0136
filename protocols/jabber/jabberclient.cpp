@@ -715,8 +715,8 @@ JabberClient::ErrorCode JabberClient::connect ( const XMPP::Jid &jid, const QStr
 	 */
 	d->privacyManager = new PrivacyManager ( rootTask() );
 
-    // Must be initialized AFTER jabberClient, since it uses it's rootTask().
-    d->archivingManager = new JT_Archive( rootTask() );
+        // Must be initialized AFTER jabberClient, since it uses it's rootTask().
+        d->archivingManager = new JT_Archive( rootTask() );
 
 	/*
 	 * Enable file transfer (IP and server will be set after connection
@@ -831,15 +831,13 @@ JabberClient::ErrorCode JabberClient::connect ( const XMPP::Jid &jid, const QStr
 	features.addFeature("jabber:x:signed");                        // XEP-0027: Current OpenPGP Usage
 	features.addFeature("urn:xmpp:delay");                         // XEP-0203: Delayed Delivery
 	features.addFeature("urn:xmpp:receipts");                      // XEP-0184: Message Delivery Receipts
-	features.addFeature("urn:xmpp:thumbs:0");                      // XEP-0264: File Transfer Thumbnails
-    features.addFeature(JT_Archive::ArchivingNS);                  // XEP-0136: Message Archiving
+        features.addFeature(JT_Archive::ArchivingNS);                  // XEP-0136: Message Archiving
 	d->jabberClient->setFeatures(features);
 
 	// Additional features supported by libiris, but not yet by Kopete:
 	// http://jabber.org/protocol/pubsub                           // XEP-0060: Publish-Subscribe
 	// http://jabber.org/protocol/address                          // XEP-0033: Extended Stanza Addressing
 	// http://jabber.org/protocol/rosterx                          // XEP-0144: Roster Item Exchange
-
 
 	d->jabberClient->connectToServer ( d->jabberClientStream, jid, auth );
 
