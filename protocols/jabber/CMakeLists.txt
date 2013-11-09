@@ -105,6 +105,7 @@ set(kopete_jabber_PART_SRCS
    tasks/jt_getlastactivity.cpp
    tasks/jt_privatestorage.cpp
    tasks/jt_ahcommand.cpp
+   tasks/jt_archive.cpp
    tasks/jt_xsearch.cpp
    tasks/jt_xregister.cpp
    tasks/jt_pubsub.cpp

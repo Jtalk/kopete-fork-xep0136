@@ -35,6 +35,8 @@
 
 #include <kopete_export.h>
 
+#include "tasks/jt_archive.h"
+
 using namespace XMPP;
 
 namespace XMPP { class PrivacyManager; }
@@ -356,7 +358,12 @@ public:
 	 * transfers.
 	 */
 	XMPP::FileTransferManager *fileTransferManager () const;
-	
+
+    /**
+     * Server-side archiving management task (XEP-0136).
+     */
+    JT_Archive *archivingManager() const;
+
 	/**
 	 * Returns the privacy lists manager
 	 */
