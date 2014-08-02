@@ -349,6 +349,7 @@ public:
      * as done in protocols/jabber/ui/jabbereditaccountwidget.cpp.
      */
     JT_Archive(Task *const parent);
+    virtual ~JT_Archive();
 
     /**
      * @brief requestPrefs sends an empty <pref/> tag to find out stored archiving
@@ -425,7 +426,7 @@ public:
      *
      * @see JabberEditAccountWidget::updateArchiveManager()
      */
-    virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration);
+    virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration = (uint)-1);
 
     /**
      * @brief updateAuto uniforms preferences update for enabling/disabling automatic archiving.

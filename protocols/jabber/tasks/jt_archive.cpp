@@ -62,8 +62,10 @@ bool JT_Archive::hasArchivingNS(const QDomElement &e)
 
 JT_Archive::JT_Archive(Task *const parent)
     : Task(parent)
-{
-}
+{}
+
+JT_Archive::~JT_Archive()
+{}
 
 QString JT_Archive::requestPrefs()
 {
