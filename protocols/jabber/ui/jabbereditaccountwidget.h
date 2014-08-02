@@ -81,6 +81,7 @@ private:
 #endif
 	void reopen ();
 	void writeConfig ();
+	void clearArchiving();
 
 };
 
