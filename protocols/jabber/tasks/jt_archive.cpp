@@ -37,22 +37,22 @@ const QString JT_Archive::ResultSetManagementNS = "http://jabber.org/protocol/rs
 
 static QDomElement findSubTag(const QDomElement &e, const QString &name, bool *found)
 {
-    if(found)
-        *found = FALSE;
+	if(found)
+		*found = FALSE;
 
-    for(QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
-        QDomElement i = n.toElement();
-        if(i.isNull())
-            continue;
-        if(i.tagName() == name) {
-            if(found)
-                *found = TRUE;
-            return i;
-        }
-    }
+	for(QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
+		QDomElement i = n.toElement();
+		if(i.isNull())
+			continue;
+		if(i.tagName() == name) {
+			if(found)
+				*found = TRUE;
+			return i;
+		}
+	}
 
-    QDomElement tmp;
-    return tmp;
+	QDomElement tmp;
+	return tmp;
 }
 
 bool JT_Archive::hasArchivingNS(const QDomElement &e)
@@ -100,11 +100,9 @@ QDomElement JT_Archive::uniformUpdate(const QDomElement &tag)
 
 QDomElement JT_Archive::uniformArchivingNS(const QString &tagName)
 {
-    //return doc()->createElementNS(ArchivingNS, tagName);
     QDomElement tag = doc()->createElement(tagName);
     tag.setAttribute("xmlns", ArchivingNS);
     return tag;
-
 }
 
 QDomElement JT_Archive::uniformPrefsRequest()
@@ -319,7 +317,7 @@ static inline bool hasScope(const QDomElement &autoTag)
 #define STR(x) # x
 #define STRCAT(x,y) QString(QString(x) + "_" + QString(y))
 #define EXTRACT_TAG(type, tag, name) (type)s_ ## type ## Enum.keyToValue(STRCAT(STR(type) \
-    , tag.attribute(name)).toAscii())
+	, tag.attribute(name)).toAscii())
 
 bool JT_Archive::handleAutoTag(const QDomElement &autoTag, const QString &id)
 {
