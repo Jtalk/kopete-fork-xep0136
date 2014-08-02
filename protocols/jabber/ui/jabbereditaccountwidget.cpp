@@ -492,10 +492,9 @@ void JabberEditAccountWidget::initAutomaticArchiving()
 
 void JabberEditAccountWidget::updateArchiveManager()
 {
-    // We don't want to affect scope value, -1 will make JT_Archive skip this parameter.
-    account()->client()->archivingManager()->updateAuto(AAEnableCheckBox->isEnabled(), (JT_Archive::AutoScope)-1);
+    account()->client()->archivingManager()->updateAuto(AAEnableCheckBox->isChecked());
     // OTR setting is not implemented, see protocols/jabber/tasks/jt_archive.h for details.
-    account()->client()->archivingManager()->updateDefault((JT_Archive::DefaultSave)AASavePolicyBox->currentIndex(), JT_Archive::DefaultOtr_approve, (uint)-1);
+    account()->client()->archivingManager()->updateDefault((JT_Archive::DefaultSave)AASavePolicyBox->currentIndex(), JT_Archive::DefaultOtr_approve);
     // Manual archiving is not implemented (mainly due to it's uselessness.
     account()->client()->archivingManager()->updateStorage(JT_Archive::MethodType_auto, (JT_Archive::MethodUse)AARemoteStorageBox->currentIndex());
     account()->client()->archivingManager()->updateStorage(JT_Archive::MethodType_local,(JT_Archive::MethodUse)AALocalStorageBox->currentIndex());
