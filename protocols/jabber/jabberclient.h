@@ -354,11 +354,6 @@ public:
 	 */
 	XMPP::Task *rootTask () const;
 
-    /**
-     * Server-side archiving management task (XEP-0136).
-     */
-    JT_Archive *archivingManager() const;
-
 	/**
 	 * Returns the file transfer manager
 	 * instance that deals with current file

@@ -35,6 +35,26 @@ const JT_Archive::AutoScope JT_Archive::defaultScope = JT_Archive::AutoScope_glo
 const QString JT_Archive::ArchivingNS = "urn:xmpp:archive";
 const QString JT_Archive::ResultSetManagementNS = "http://jabber.org/protocol/rsm";
 
+static QDomElement findSubTag(const QDomElement &e, const QString &name, bool *found)
+{
+    if(found)
+        *found = FALSE;
+
+    for(QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
+        QDomElement i = n.toElement();
+        if(i.isNull())
+            continue;
+        if(i.tagName() == name) {
+            if(found)
+                *found = TRUE;
+            return i;
+        }
+    }
+
+    QDomElement tmp;
+    return tmp;
+}
+
 bool JT_Archive::hasArchivingNS(const QDomElement &e)
 {
     return e.attribute("xmlns") == ArchivingNS;
