@@ -10,13 +10,14 @@
 //
 //
 
+#include "addbookmarksplugin.h"
+
 #include <kdebug.h>
 #include <kbookmark.h>
 #include <qvariant.h>
 #include <qtextcodec.h>
 #include <qregexp.h>
 
-#include "addbookmarksplugin.h"
 #include "kopetecontact.h"
 #include "kopetechatsessionmanager.h"
 #include "kopeteglobal.h"
@@ -58,8 +59,8 @@ void BookmarksPlugin::slotBookmarkURLsInMessage(Kopete::Message & msg)
 				//kDebug (14501) << "name:" << msg.from()->metaContact()->displayName();
 			}
 			else {
-				addKopeteBookmark(*it, msg.from()->nickName() );
-				//kDebug (14501) << "name:" << msg.from()->nickName();
+				addKopeteBookmark(*it, msg.from()->displayName() );
+				//kDebug (14501) << "name:" << msg.from()->displayName();
 			}
 		}
 	}

@@ -15,6 +15,8 @@
     *************************************************************************
 */
 
+#include "statisticsdb.h"
+
 #include <QByteArray>
 #include <QSqlDriver>
 #include <QSqlQuery>
@@ -26,8 +28,6 @@
 #include <kmessagebox.h>
 #include <kstandarddirs.h>
 #include <kdeversion.h>
-
-#include "statisticsdb.h"
 
 #include <time.h>
 
@@ -41,6 +41,16 @@ StatisticsDB::StatisticsDB()
 		kError ( 14315 ) << "Unable to open database" << path;
 		return;
 	}
+
+	// With synchronous mode turned off, SQLite does not call fsync (for every query).
+	// System call fsync only ask kernel to flush buffers to disk and wait until complete.
+	// It is expensive and not all filesystems implement it. Also it does not guarantee data lose.
+	// If Kopete crash database will not be corrupted even if fsync will not called (but kernel must not crash).
+	// Synchronous mode is turned on by default and degrades performance about 50 times.
+	// On bigger database it cause big slowdown and changing status from online to offline can take ages...
+	// When synchronous mode is off it dramatically speed up writes to database.
+	// Synchronous mode has more disadvantages, so turn it off.
+	query ( "PRAGMA synchronous = OFF" );
 
 	has_transaction = m_db.driver()->hasFeature(QSqlDriver::Transactions);
 

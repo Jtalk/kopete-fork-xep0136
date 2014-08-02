@@ -23,7 +23,7 @@
 #include "gwprotocol.h"
 #include <qregexp.h>
 #include <qstringlist.h>
-#include <Q3TextStream>
+#include <QTextStream>
 #include <QByteArray>
 
 #include <kgenericfactory.h>
@@ -94,6 +94,7 @@ Kopete::Contact *GroupWiseProtocol::deserializeContact(
 {
 	QString dn = serializedData[ "DN" ];
 	QString accountId = serializedData[ "accountId" ];
+	Kopete::Contact::NameType nameType = Kopete::Contact::nameTypeFromString(serializedData[ "preferredNameType" ]);
 	int objectId = serializedData[ "objectId" ].toInt();
 	int parentId = serializedData[ "parentId" ].toInt();
 	int sequence = serializedData[ "sequenceNumber" ].toInt();
@@ -109,7 +110,9 @@ Kopete::Contact *GroupWiseProtocol::deserializeContact(
 	}
 
 	// FIXME: creating a contact with a userId here
-	return new GroupWiseContact(account, dn, metaContact, objectId, parentId, sequence );
+	GroupWiseContact *contact = new GroupWiseContact(account, dn, metaContact, objectId, parentId, sequence );
+	contact->setPreferredNameType(nameType);
+	return contact;
 }
 
 AddContactPage * GroupWiseProtocol::createAddContactWidget( QWidget *parent, Kopete::Account *  account )
@@ -250,7 +253,7 @@ QString GroupWiseProtocol::rtfizeText( const QString & plain )
 			}
 			else
 			{
-				kDebug() << "bogus utf-8 lead byte: 0x" << Q3TextStream::hex << current;
+				kDebug() << "bogus utf-8 lead byte: 0x" << QTextStream::hex << current;
 				ucs4Char = 0x003F;
 				bytesEncoded = 1;
 			}

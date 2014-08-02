@@ -50,6 +50,7 @@
 #include <qfile.h>
 #include <qfileinfo.h>
 #include <qwidget.h>
+#include <qtextdocument.h>
 
 extern "C"{
 #include <sys/types.h>
@@ -236,9 +237,14 @@ void OtrlChatInterface::still_secure(void *opdata, ConnContext *context, int is_
 }
 
 int OtrlChatInterface::max_message_size(void *opdata, ConnContext *context){
-	Kopete::ChatSession *session= ((Kopete::ChatSession*)opdata);
-
 	Q_UNUSED(context)
+
+	if (!opdata) {
+		kDebug(14318) << "Trying to determine max message size of unknown session. Fragmentation will not work.";
+		return 0;
+	}
+
+	Kopete::ChatSession *session= ((Kopete::ChatSession*)opdata);
 
 	kDebug(14318) << session->protocol()->pluginId();
 
@@ -376,7 +382,10 @@ void OtrlChatInterface::handle_smp_event(void *opdata, OtrlSMPEvent smp_event, C
 	case OTRL_SMPEVENT_ABORT :
 	case OTRL_SMPEVENT_CHEATED :
 	case OTRL_SMPEVENT_ERROR :
-		AuthenticationWizard::findWizard(chatSession)->finished(false, false);
+		AuthenticationWizard *wizard = AuthenticationWizard::findWizard(chatSession);
+		if (wizard) {
+			wizard->finished(false, false);
+		}
 		OtrlChatInterface::self()->abortSMP( context, chatSession );
 		break;
 	}
@@ -626,7 +635,7 @@ int OtrlChatInterface::encryptMessage( Kopete::Message &message ){
 	bool plaintext = message.format() == Qt::PlainText;
 
 	if(plaintext){
-		msgBody = message.plainBody().replace('<', "&lt;");
+		msgBody = Qt::escape(message.plainBody()).replace('\n', "<br/>");
 	} else {
 		msgBody = message.escapedBody();
 	}
@@ -648,6 +657,9 @@ int OtrlChatInterface::encryptMessage( Kopete::Message &message ){
 		} else if (newMessage) {
 			msgBody = QString::fromUtf8(newMessage);
 			otrl_message_free(newMessage);
+		} else {
+			/* Message was not changed */
+			return 2;
 		}
 
 

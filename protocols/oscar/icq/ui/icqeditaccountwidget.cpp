@@ -95,13 +95,13 @@ ICQEditAccountWidget::ICQEditAccountWidget(ICQProtocol *protocol,
 		mAccountSettings->edtServerEncrypted->setChecked( encryptedEntry );
 
 		bool proxyServerEnableEntry = mAccount->configGroup()->readEntry("ProxyEnable", false);
-		bool proxyEncryptedEntry = mAccount->configGroup()->readEntry("ProxyEncrypted", false);
+		bool proxyServerSocks5Entry = mAccount->configGroup()->readEntry("ProxySocks5", false);
 		QString proxyServerEntry = mAccount->configGroup()->readEntry("ProxyServer", QString());
 		int proxyPortEntry = mAccount->configGroup()->readEntry("ProxyPort", 443);
 		mAccountSettings->optionEnableProxy->setChecked( proxyServerEnableEntry );
+		mAccountSettings->edtProxyServerSocks5->setChecked( proxyServerSocks5Entry );
 		mAccountSettings->edtProxyServerAddress->setText( proxyServerEntry );
 		mAccountSettings->edtProxyServerPort->setValue( proxyPortEntry );
-		mAccountSettings->edtProxyServerEncrypted->setChecked( proxyEncryptedEntry );
 
 
 		bool configChecked = mAccount->configGroup()->readEntry( "RequireAuth", false );
@@ -274,9 +274,9 @@ Kopete::Account *ICQEditAccountWidget::apply()
 	mAccount->setProxyServerEnabled( useProxy );
 	if ( mAccountSettings->optionEnableProxy->isChecked() )
 	{
+		mAccount->setProxyServerSocks5(mAccountSettings->edtProxyServerSocks5->isChecked());
 		mAccount->setProxyServerAddress(mAccountSettings->edtProxyServerAddress->text().trimmed());
 		mAccount->setProxyServerPort(mAccountSettings->edtProxyServerPort->value());
-		mAccount->setProxyServerEncrypted(mAccountSettings->edtProxyServerEncrypted->isChecked());
 	}
 
 	//set filetransfer stuff

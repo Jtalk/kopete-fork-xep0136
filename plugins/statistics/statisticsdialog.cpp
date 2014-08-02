@@ -15,6 +15,7 @@
     *************************************************************************
 */
 
+#include "statisticsdialog.h"
 
 #include <qtabwidget.h>
 #include <qwidget.h>
@@ -36,7 +37,6 @@
 #include "kopetemetacontact.h"
 #include "kopeteonlinestatus.h"
 
-#include "statisticsdialog.h"
 #include "statisticscontact.h"
 #include "ui_statisticswidgetbase.h"
 #include "statisticsplugin.h"
@@ -674,7 +674,7 @@ void StatisticsDialog::generateOneDayStats ()
 		else if ( Kopete::OnlineStatus::statusStringToType ( values[i] ) == Kopete::OnlineStatus::Away )
 			status = i18n ( "Away" );
 		else if ( Kopete::OnlineStatus::statusStringToType ( values[i] ) == Kopete::OnlineStatus::Busy )
-			status = i18n ( "Away" );
+			status = i18n ( "Busy" );
 		else if ( Kopete::OnlineStatus::statusStringToType ( values[i] ) == Kopete::OnlineStatus::Offline )
 			status = i18n ( "Offline" );
 

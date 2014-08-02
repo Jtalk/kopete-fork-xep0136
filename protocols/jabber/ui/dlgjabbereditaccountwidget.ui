@@ -579,6 +579,17 @@
                 <height>32767</height>
                </size>
               </property>
+            <property name="minimum">
+              <number>-127</number>
+            </property>
+            <property name="maximum">
+              <number>127</number>
+            </property>
+            <property name="toolTip">
+             <string>&lt;qt>Each resource can have different &lt;b>priority &lt;/b> levels. The messages will be sent to the resource which has the highest priority level.
+
+If two resources have the same priority, the messages will be sent to the one most recently connected.&lt;/qt></string>
+            </property>
               <property name="whatsThis">
                <string>&lt;qt&gt;Each resource can have different &lt;b&gt;priority &lt;/b&gt; levels. The messages will be sent to the resource which has the highest priority level.
 
@@ -637,7 +648,7 @@ If two resources have the same priority, the messages will be sent to the one mo
                <number>-127</number>
               </property>
               <property name="maximum">
-               <number>128</number>
+               <number>127</number>
               </property>
              </widget>
             </item>
@@ -1059,22 +1070,25 @@ One media type uses 2 ports and each new Jingle session will use the next 2 avai
      </widget>
      <widget class="QWidget" name="TabPage">
       <attribute name="title">
-       <string>&amp;Google Talk</string>
+       <string>&amp;Libjingle</string>
       </attribute>
       <layout class="QVBoxLayout" name="_20">
        <item>
         <widget class="QGroupBox" name="groupBox_17">
          <property name="title">
-          <string>Google Talk libjingle settings</string>
+          <string>Libjingle settings</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_9">
           <item>
-           <widget class="QCheckBox" name="GoogleTalk">
+           <widget class="QCheckBox" name="Libjingle">
             <property name="toolTip">
-             <string>This enable Google Talk libjingle voice call</string>
+             <string>This enable libjingle voice call</string>
             </property>
             <property name="text">
-             <string>Enable Google Talk libjingle support (only for GTalk/Gmail accounts)</string>
+             <string>Enable libjingle support</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -1283,7 +1297,7 @@ One media type uses 2 ports and each new Jingle session will use the next 2 avai
        <item>
         <widget class="QCheckBox" name="oldEncrypted">
          <property name="text">
-          <string>Use old inline PGP format for signed and encrypted messages</string>
+          <string>When recipient does not support OpenPGP XEP-0027 wrap PGP block to message body</string>
          </property>
         </widget>
        </item>

@@ -20,6 +20,8 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 // 02110-1301, USA.
 
+#include "gaduprotocol.h"
+
 #include <kdebug.h>
 #include <kgenericfactory.h>
 #include <kconfig.h>
@@ -28,7 +30,6 @@
 
 #include "gaduaccount.h"
 #include "gaducontact.h"
-#include "gaduprotocol.h"
 
 #include "gadueditaccount.h"
 #include "gaduaddcontactpage.h"
@@ -131,6 +132,7 @@ GaduProtocol::deserializeContact( Kopete::MetaContact* metaContact,
 
 	const QString aid	= serializedData[ "accountId" ];
 	const QString cid	= serializedData[ "contactId" ];
+	Kopete::Contact::NameType nameType = Kopete::Contact::nameTypeFromString(serializedData[ "preferredNameType" ]);
 
 	Kopete::Account* account = Kopete::AccountManager::self()->findAccount( pluginId(), aid ); 
 	if (!account) {
@@ -142,6 +144,7 @@ GaduProtocol::deserializeContact( Kopete::MetaContact* metaContact,
 	GaduContact* contact = new GaduContact( cid.toUInt(), account, metaContact );
 
 	contact->setParentIdentity( aid );
+	contact->setPreferredNameType( nameType );
 	gaccount->addNotify( cid.toUInt() );
 
 	contact->setProperty( propEmail, serializedData["email"] );

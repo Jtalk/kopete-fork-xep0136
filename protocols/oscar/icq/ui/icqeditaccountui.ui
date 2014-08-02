@@ -415,19 +415,19 @@ If you do not currently have an ICQ account, please click the button to create o
           <item>
            <widget class="QCheckBox" name="optionEnableProxy">
             <property name="text">
-             <string>Enable Proxy</string>
+             <string>Override system proxy settings</string>
             </property>
            </widget>
           </item>
           <item>
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
-             <widget class="QCheckBox" name="edtProxyServerEncrypted">
+             <widget class="QCheckBox" name="edtProxyServerSocks5">
               <property name="enabled">
                <bool>false</bool>
               </property>
               <property name="text">
-               <string>Use SSL encryption</string>
+               <string>Proxy server is SOCKS5</string>
               </property>
              </widget>
             </item>
@@ -1085,7 +1085,7 @@ If you do not currently have an ICQ account, please click the button to create o
   <connection>
    <sender>optionEnableProxy</sender>
    <signal>toggled(bool)</signal>
-   <receiver>edtProxyServerEncrypted</receiver>
+   <receiver>edtProxyServerSocks5</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">

@@ -62,6 +62,7 @@ MetaContact::MetaContact()
 	connect( this, SIGNAL(contactAdded(Kopete::Contact*)), SIGNAL(persistentDataChanged()) );
 	connect( this, SIGNAL(contactRemoved(Kopete::Contact*)), SIGNAL(persistentDataChanged()) );
 
+	// TODO: speed up: this slot is called when any kabc contact is changed and is called in *every* metacontact instance. also slot is slow because it finding kabc id
 	// Update the KABC picture when the KDE Address book change.
 	connect(KABCPersistence::self()->addressBook(), SIGNAL(addressBookChanged(AddressBook*)), this, SLOT(slotUpdateAddressBookPicture()));
 
@@ -103,6 +104,9 @@ void MetaContact::addContact( Contact *c )
 
 		connect( c, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)),
 			this, SLOT(slotPropertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)) ) ;
+
+		connect( c, SIGNAL(displayNameChanged(QString,QString)),
+			this, SLOT(slotContactDisplayNameChanged(QString,QString)) );
 
 		connect( c, SIGNAL(contactDestroyed(Kopete::Contact*)),
 			this, SLOT(slotContactDestroyed(Kopete::Contact*)) );
@@ -229,6 +233,8 @@ void MetaContact::removeContact(Contact *c, bool deleted)
 				this, SLOT(slotContactStatusChanged(Kopete::Contact*,Kopete::OnlineStatus,Kopete::OnlineStatus)) );
 			disconnect( c, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)),
 				this, SLOT(slotPropertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)) ) ;
+			disconnect( c, SIGNAL(displayNameChanged(QString,QString)),
+				this, SLOT(slotContactDisplayNameChanged(QString,QString)) );
 			disconnect( c, SIGNAL(contactDestroyed(Kopete::Contact*)),
 				this, SLOT(slotContactDestroyed(Kopete::Contact*)) );
 			disconnect( c, SIGNAL(idleStateChanged(Kopete::Contact*)),
@@ -715,7 +721,7 @@ QString nameFromContact( Kopete::Contact *c) /*const*/
 	if ( !c )
 		return QString();
 
-	QString contactName = c->nickName();
+	QString contactName = c->displayName();
 				//the remove is there to workaround the Bug 95444
 	return contactName.remove('\n');
 }
@@ -825,7 +831,7 @@ void MetaContact::setDisplayNameSourceContact( Contact *contact )
 {
 	Contact *old = d->displayNameSourceContact;
 	d->displayNameSourceContact = contact;
-	if ( displayNameSource() == SourceContact ) {
+	if ( contact && displayNameSource() == SourceContact ) {
 		emit displayNameChanged( nameFromContact(old), nameFromContact(contact));
 		QListIterator<Kopete::Contact *> it( d->contacts );
 		while (  it.hasNext() )
@@ -878,31 +884,33 @@ void MetaContact::setPhotoSourceContact( Contact *contact )
 	}
 }
 
+void MetaContact::slotContactDisplayNameChanged(const QString &oldName, const QString &newName)
+{
+	Contact *subcontact = static_cast<Contact *>(sender());
+	if ( displayNameSource() == SourceContact || 
+			(d->displayName.isEmpty() && displayNameSource() == SourceCustom) )
+	{
+		if (displayNameSourceContact() == subcontact)
+		{
+			emit displayNameChanged(oldName, newName);
+			QListIterator<Kopete::Contact *> it( d->contacts );
+			while (  it.hasNext() )
+				( it.next() )->sync(Contact::DisplayNameChanged);
+		}
+		else
+		{
+			// HACK the displayName that changed is not from the contact we are tracking, but
+			// as the current one is null, lets use this new one
+			if (displayName().isEmpty())
+				setDisplayNameSourceContact(subcontact);
+		}
+	}
+}
+
 void MetaContact::slotPropertyChanged( PropertyContainer* _subcontact, const QString &key,
 		const QVariant &oldValue, const QVariant &newValue  )
 {
 	Contact *subcontact=static_cast<Contact*>(_subcontact);
-	if ( displayNameSource() == SourceContact || 
-			(d->displayName.isEmpty() && displayNameSource() == SourceCustom) )
-	{
-		if( key == Global::Properties::self()->nickName().key() )
-		{
-			if (displayNameSourceContact() == subcontact)
-			{
-				emit displayNameChanged( oldValue.toString(), newValue.toString());
-				QListIterator<Kopete::Contact *> it( d->contacts );
-				while (  it.hasNext() )
-					( it.next() )->sync(Contact::DisplayNameChanged);
-			}
-			else
-			{
-				// HACK the displayName that changed is not from the contact we are tracking, but
-				// as the current one is null, lets use this new one
-				if (displayName().isEmpty())
-					setDisplayNameSourceContact(subcontact);
-			}
-		}
-	}
 
 	if (photoSource() == SourceContact)
 	{
@@ -1189,6 +1197,7 @@ void MetaContact::setKabcId( const QString& newKabcId )
 	d->kabcId = newKabcId;
 	if ( loading() )
 	{
+		// TODO: speed up: this slot is called in *every* metacontact instance and is slow because it finding kabc id
 		slotUpdateAddressBookPicture();
 	}
 	else

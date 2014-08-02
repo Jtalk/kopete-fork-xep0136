@@ -194,7 +194,7 @@ void Kopete::ChatSession::slotUpdateDisplayName()
 			d->displayName.append( c->metaContact()->displayName() );
 		else
 		{
-			d->displayName.append( c->nickName() );
+			d->displayName.append( c->displayName() );
 		}
 	}
 
@@ -313,7 +313,7 @@ void Kopete::ChatSession::appendMessage( Kopete::Message &msg )
 
 	if ( msg.direction() == Kopete::Message::Inbound )
 	{
-		const QString nick = myself()->nickName();
+		const QString nick = myself()->displayName();
 		if ( Kopete::BehaviorSettings::self()->highlightEnabled() && !nick.isEmpty() )
 		{
 			const QString nickNameRegExp = QString::fromLatin1( "(^|[\\W])(%1)([\\W]|$)" ).arg( QRegExp::escape( nick ) );
@@ -465,9 +465,9 @@ void Kopete::ChatSession::addContact( const Kopete::Contact *c, bool suppress )
 				disconnect( old->metaContact(), SIGNAL(photoChanged()), this, SIGNAL(photoChanged()) );
 			}
 			else
-				disconnect( old, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)), this, SLOT(slotUpdateDisplayName()) );
+				disconnect( old, SIGNAL(displayNameChanged(QString,QString)), this, SLOT(slotUpdateDisplayName()) );
 
-			disconnect( old, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)), this, SLOT(slotContactPropertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)) );
+			disconnect( old, SIGNAL(displayNameChanged(QString,QString)), this, SLOT(slotDisplayNameChanged(QString,QString)) );
 
 			emit contactAdded( c, suppress );
 			emit contactRemoved( old, QString() );
@@ -488,9 +488,9 @@ void Kopete::ChatSession::addContact( const Kopete::Contact *c, bool suppress )
 			connect( c->metaContact(), SIGNAL(photoChanged()), this, SIGNAL(photoChanged()) );
 		}
 		else
-			connect( c, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)), this, SLOT(slotUpdateDisplayName()) );
+			connect( c, SIGNAL(displayNameChanged(QString,QString)), this, SLOT(slotUpdateDisplayName()) );
 		connect( c, SIGNAL(contactDestroyed(Kopete::Contact*)), this, SLOT(slotContactDestroyed(Kopete::Contact*)) );
-		connect( c, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)), this, SLOT(slotContactPropertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)) );
+		connect( c, SIGNAL(displayNameChanged(QString,QString)), this, SLOT(slotDisplayNameChanged(QString,QString)) );
 
 		slotUpdateDisplayName();
 	}
@@ -521,10 +521,10 @@ void Kopete::ChatSession::removeContact( const Kopete::Contact *c, const QString
 			disconnect( c->metaContact(), SIGNAL(photoChanged()), this, SIGNAL(photoChanged()) );
 		}
 		else
-			disconnect( c, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)), this, SLOT(slotUpdateDisplayName()) );
+			disconnect( c, SIGNAL(displayNameChanged(QString,QString)), this, SLOT(slotUpdateDisplayName()) );
 		disconnect( c, SIGNAL(contactDestroyed(Kopete::Contact*)), this, SLOT(slotContactDestroyed(Kopete::Contact*)) );
 
-		disconnect( c, SIGNAL(propertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)), this, SLOT(slotContactPropertyChanged(Kopete::PropertyContainer*,QString,QVariant,QVariant)) );
+		disconnect( c, SIGNAL(displayNameChanged(QString,QString)), this, SLOT(slotDisplayNameChanged(QString,QString)) );
 
 		slotUpdateDisplayName();
 	}
@@ -561,7 +561,7 @@ void Kopete::ChatSession::receivedTypingMsg( const Kopete::Contact *c, bool t )
 	}
 
 	KNotification *notification = new KNotification( "user_is_typing_message", viewWidget );
-	const QString msgBody = i18n( "User <i>%1</i> is typing a message", c->nickName() );
+	const QString msgBody = i18n( "User <i>%1</i> is typing a message", c->displayName() );
 	notification->setText( msgBody );
 	notification->setPixmap( QPixmap::fromImage( c->metaContact()->picture().image() ) );
 	notification->setActions( QStringList( i18nc("@action", "Chat") ) );
@@ -731,13 +731,10 @@ void Kopete::ChatSession::setWarnGroupChat( bool b )
 	d->warnGroupChat=b;
 }
 
-void Kopete::ChatSession::slotContactPropertyChanged( Kopete::PropertyContainer * contact, const QString &key, const QVariant &oldValue, const QVariant &newValue ){
-	Kopete::Contact *c = (Kopete::Contact*) contact;
-	if (key == Kopete::Global::Properties::self()->nickName().key()){
-		const QString nick = oldValue.toString();
-		emit nickNameChanged(c,nick);
-	}
-	Q_UNUSED(newValue);
+void Kopete::ChatSession::slotDisplayNameChanged(const QString &oldName, const QString &)
+{
+	Kopete::Contact *c = static_cast<Kopete::Contact *>(sender());
+	emit nickNameChanged(c, oldName);
 }
 
 #include "kopetechatsession.moc"

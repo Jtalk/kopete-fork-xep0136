@@ -143,7 +143,7 @@ KopeteEmailWindow::KopeteEmailWindow( Kopete::ChatSession *manager, EmailWindowP
 	connect( d->editPart, SIGNAL(canSendChanged(bool)),
 	         this, SLOT(slotUpdateReplySend()) );
 	connect( d->editPart, SIGNAL(typing(bool)),
-		 manager, SIGNAL(typing(bool)) );
+		 manager, SLOT(typing(bool)) );
 
 	//Connections to the manager and the ViewManager that every view should have
 	connect( this, SIGNAL(closing(KopeteView*)),
@@ -227,6 +227,9 @@ void KopeteEmailWindow::initActions(void)
 	KStandardAction::copy( this, SLOT(slotCopy()), coll);
 	KStandardAction::paste( d->editPart->widget(), SLOT(paste()), coll );
 
+	// FIXME: This code is not working. Slots setFont(), setForegroundColorColor() and setBackgroundColorColor do not exist
+	// Disable it for now
+#if 0
 	KAction* action;
 	action = new KAction( KIcon("preferences-desktop-font"), i18n( "&Set Font..." ), coll );
         coll->addAction( "format_font", action );
@@ -239,6 +242,7 @@ void KopeteEmailWindow::initActions(void)
 	action = new KAction( KIcon("format-fill-color"), i18n( "Set &Background Color..." ), coll );
         coll->addAction( "format_bgcolor", action );
 	connect( action, SIGNAL(triggered()), d->editPart, SLOT(setBackgroundColorColor()) );
+#endif
 
 	KStandardAction::showMenubar( this, SLOT(slotViewMenuBar()), coll );
 	setStandardToolBarMenuEnabled( true );
@@ -269,7 +273,7 @@ void KopeteEmailWindow::initActions(void)
 	coll->addAction( "toolbar_spacer", spacerAction );
 
 	KAction *animAction = new KAction( i18n("Toolbar Animation"), coll );
-        coll->addAction( "toolbar_animation", action );
+	coll->addAction( "toolbar_animation", animAction );
 	animAction->setDefaultWidget( d->anim );
 
 	setXMLFile( QLatin1String( "kopeteemailwindow.rc" ) );

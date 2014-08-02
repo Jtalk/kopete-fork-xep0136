@@ -16,6 +16,8 @@
     *************************************************************************
 */
 
+#include "meanwhilesession.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <kmessagebox.h>
@@ -27,7 +29,6 @@
 #include <kopetegroup.h>
 #include <kopetecontactlist.h>
 #include <kopetesockettimeoutwatcher.h>
-#include "meanwhilesession.h"
 #include "meanwhileprotocol.h"
 
 #include <meanwhile/mw_channel.h>
@@ -41,7 +42,6 @@
 #include <meanwhile/mw_srvc_store.h>
 #include <meanwhile/mw_cipher.h>
 #include <meanwhile/mw_st_list.h>
-#include <Q3ValueList>
 
 #define set_session_handler(a,b) sessionHandler.a = _handleSession ## b
 #define set_aware_handler(a,b)   awareHandler.a = _handleAware ## b
@@ -442,7 +442,7 @@ void MeanwhileSession::syncContactsToServer()
         struct mwSametimeUser *stuser = mwSametimeUser_new(stgroup,
                 mwSametimeUser_NORMAL, &id);
 
-        mwSametimeUser_setAlias(stuser, contact->nickName().toUtf8().constData());
+        mwSametimeUser_setAlias(stuser, mc->displayName().toUtf8().constData());
     }
 
     /* store! */
@@ -814,7 +814,7 @@ struct MeanwhileSession::ConversationData
     cd->chat    = contact->manager(Kopete::Contact::CanCreate);
     cd->chat->ref();
     if (createQueue)
-        cd->queue = new Q3ValueList<Kopete::Message>();
+        cd->queue = new QList<Kopete::Message>();
 
     mwConversation_setClientData(conv, cd, 0L);
 
@@ -839,7 +839,7 @@ void MeanwhileSession::handleImConvOpened(struct mwConversation *conv)
 
     } else if (convdata->queue && !convdata->queue->isEmpty()) {
         /* send any messages that were waiting for the conversation to open */
-        Q3ValueList<Kopete::Message>::iterator it;
+        QList<Kopete::Message>::iterator it;
         for (it = convdata->queue->begin(); it != convdata->queue->end();
                 ++it) {
             mwConversation_send(conv, mwImSend_PLAIN,
