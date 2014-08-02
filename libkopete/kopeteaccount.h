@@ -419,6 +419,19 @@ public:
 	 */
 	virtual bool isBlocked( const QString &contactId );
 
+	/**
+	 * @brief Checks if local history saving is enabled for this account
+	 *
+	 * Reimplement this in case your account settings allow user to either forbid client from storing
+	 * local history or set server-side history storing.
+	 *
+	 * Once server-side history storing is chosen, account should return false here since merging server
+	 * and client histories interactively is a hell of a job.
+	 *
+	 * @return true if history plugin should store messages locally, false otherwise.
+	 */
+	virtual bool isLocalHistoryEnabled() const;
+
 protected:
 	/**
 	 * \brief Set the 'myself' contact.

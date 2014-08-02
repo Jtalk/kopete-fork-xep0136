@@ -262,6 +262,11 @@ void HistoryLogger::appendMessage( const Kopete::Message &msg , const Kopete::Co
 		return;
 	}
 
+    Kopete::Account *account = c->account();
+    if (!account->isHistoryEnabled()) {
+        return;
+    }
+
 	QDate date = msg.timestamp().date();
 		
 	QDomDocument doc=getDocument(c, QDate::currentDate().month() - date.month() - (QDate::currentDate().year() - date.year()) * 12);

@@ -1802,6 +1802,15 @@ bool JabberAccount::removeAccount( )
 	return true;
 }
 
+bool JabberAccount::isLocalHistoryEnabled() const
+{
+	JT_Archive *archivingManager = client()->archivingManager();
+	if (!archivingManager) {
+		return true;
+	}
+	return archivingManager->isLocalHistoryEnabled();
+}
+
 void JabberAccount::slotUnregisterFinished( )
 {
 	const XMPP::JT_Register * task = dynamic_cast<const XMPP::JT_Register *>(sender ());

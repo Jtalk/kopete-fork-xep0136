@@ -685,6 +685,11 @@ bool Account::isBlocked( const QString &contactId )
 	return d->blackList->isBlocked( contactId );
 }
 
+bool Account::isLocalHistoryEnabled() const
+{
+	return true;
+}
+
 void Account::editAccount(QWidget *parent)
 {
 	QPointer <KDialog> editDialog = new KDialog( parent );

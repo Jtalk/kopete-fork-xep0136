@@ -133,6 +133,11 @@ public:
 	virtual bool removeAccount();
 
 	/**
+	 * Once JabberAccount now supports server-side history, it should return values properly
+	 */
+	virtual bool isLocalHistoryEnabled() const;
+
+	/**
 	 * return if kopete show all messges from all resources to one session
 	 */
 	bool mergeMessages();
