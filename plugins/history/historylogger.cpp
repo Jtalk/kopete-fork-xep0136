@@ -262,10 +262,10 @@ void HistoryLogger::appendMessage( const Kopete::Message &msg , const Kopete::Co
 		return;
 	}
 
-    Kopete::Account *account = c->account();
-    if (!account->isHistoryEnabled()) {
-        return;
-    }
+	Kopete::Account *account = c->account();
+	if (!account->isLocalHistoryEnabled()) {
+		return;
+	}
 
 	QDate date = msg.timestamp().date();
 		

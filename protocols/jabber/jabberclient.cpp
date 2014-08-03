@@ -165,7 +165,7 @@ void JabberClient::cleanUp ()
 	delete d->jabberClientStream;
 	delete d->jabberClientConnector;
 	delete d->jabberTLSHandler;
-    delete d->jabberTLS;
+	delete d->jabberTLS;
 	// privacyManager will be deleted with jabberClient, its parent's parent
 
 	d->jabberClient = 0L;
@@ -173,7 +173,7 @@ void JabberClient::cleanUp ()
 	d->jabberClientConnector = 0L;
 	d->jabberTLSHandler = 0L;
 	d->jabberTLS = 0L;
-    d->archivingManager = 0L;
+	d->archivingManager = 0L;
 	d->privacyManager = 0L;
 
 	d->currentPenaltyTime = 0;
@@ -843,6 +843,8 @@ JabberClient::ErrorCode JabberClient::connect ( const XMPP::Jid &jid, const QStr
 	// http://jabber.org/protocol/rosterx                          // XEP-0144: Roster Item Exchange
 
 	d->jabberClient->connectToServer ( d->jabberClientStream, jid, auth );
+
+	d->archivingManager->initCache();
 
 	return Ok;
 

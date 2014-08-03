@@ -40,7 +40,7 @@
 
 /**
  * @brief The JT_Archive class is an Iris task for the XMPP extension #0136, Message archiving.
- * @author Roman Nazarenko
+ * @author Roman Nazarenko <me@jtalk.me>
  *
  * One can create an instance to either check or modify archiving preferences.
  * Since all XEP-0136 preferences are stored on the server, we need no resident
@@ -349,7 +349,7 @@ public:
      * as done in protocols/jabber/ui/jabbereditaccountwidget.cpp.
      */
     JT_Archive(Task *const parent);
-    virtual ~JT_Archive();
+	virtual ~JT_Archive();
 
     /**
      * @brief requestPrefs sends an empty <pref/> tag to find out stored archiving
@@ -426,7 +426,7 @@ public:
      *
      * @see JabberEditAccountWidget::updateArchiveManager()
      */
-    virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration = (uint)-1);
+	virtual void updateDefault(const DefaultSave, const DefaultOtr, const uint expiration = (uint)-1);
 
     /**
      * @brief updateAuto uniforms preferences update for enabling/disabling automatic archiving.
@@ -446,6 +446,17 @@ public:
      * behaviour.
      */
     virtual void updateStorage(const MethodType, const MethodUse);
+
+	/**
+	 * Once server-side archiving is prefered, client-side history saving should be disabled.
+	 */
+	bool isLocalHistoryEnabled() const;
+
+	/**
+	 * @brief initCache archiving manager to request server-stored preferences and update its
+	 * internal cache.
+	 */
+	void initCache();
 
 protected:
     /**
@@ -651,6 +662,9 @@ protected:
     AnswerHandler chooseHandler(const QDomElement&);
 
 private:
+	struct Preferences;
+	Preferences *cache;
+
     bool handleSet(const QDomElement&, const QDomElement&, const QString&);
     bool handleGet(const QDomElement&, const QDomElement&, const QString&);
     bool handleResult(const QDomElement&, const QDomElement&, const QString&);

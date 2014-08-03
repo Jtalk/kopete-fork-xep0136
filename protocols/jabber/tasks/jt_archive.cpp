@@ -15,6 +15,8 @@
 
 #include "jt_archive.h"
 
+#include <KDebug>
+
 #include "xmpp_xmlcommon.h"
 #include "xmpp_client.h"
 
@@ -55,17 +57,57 @@ static QDomElement findSubTag(const QDomElement &e, const QString &name, bool *f
 	return tmp;
 }
 
-bool JT_Archive::hasArchivingNS(const QDomElement &e)
+class JT_Archive::Preferences
 {
-    return e.attribute("xmlns") == ArchivingNS;
-}
+public:
+	Preferences()
+		: serverSideEnabled(false), serverPreference(MethodUse_forbid), localPreference(MethodUse_prefer)
+		, manualPreference(MethodUse_forbid), savingPolicy(DefaultSave_false)
+	{}
+
+	void update(MethodType type, MethodUse value)
+	{
+		kDebug(14310) << "Preference " << type << " is set to " << value;
+
+		switch (type)
+		{
+		case MethodType_auto:
+			serverPreference = value;
+			break;
+		case MethodType_local:
+			localPreference = value;
+			break;
+		case MethodType_manual:
+			manualPreference = value;
+			break;
+		}
+	}
+
+	bool serverSideEnabled;
+	MethodUse serverPreference;
+	MethodUse localPreference;
+	MethodUse manualPreference;
+	DefaultSave savingPolicy;
+};
 
 JT_Archive::JT_Archive(Task *const parent)
-    : Task(parent)
+	: Task(parent), cache(new Preferences())
 {}
 
 JT_Archive::~JT_Archive()
-{}
+{
+	delete cache;
+}
+
+void JT_Archive::initCache()
+{
+	requestPrefs();
+}
+
+bool JT_Archive::hasArchivingNS(const QDomElement &e)
+{
+	return e.attribute("xmlns") == ArchivingNS;
+}
 
 QString JT_Archive::requestPrefs()
 {
@@ -333,6 +375,7 @@ bool JT_Archive::handleAutoTag(const QDomElement &autoTag, const QString &id)
     // valid.
     if (verifyAutoTag(autoTag)) {
         bool isAutoArchivingEnabled = QVariant(autoTag.attribute("save")).toBool();
+		cache->serverSideEnabled = isAutoArchivingEnabled;
         emit automaticArchivingEnable(isAutoArchivingEnabled, id, scope);
         return true;
     } else {
@@ -357,6 +400,7 @@ bool JT_Archive::handleDefaultTag(const QDomElement &defaultTag, const QString &
         uint expire = defaultTag.attributes().contains("expire")
                 ? QVariant(defaultTag.attribute("scope")).toUInt()
                 : defaultExpiration;
+		cache->savingPolicy = saveMode;
         emit defaultPreferenceChanged(saveMode, otrMode, id, expire);
         return true;
     } else {
@@ -389,6 +433,7 @@ bool JT_Archive::handleMethodTag(const QDomElement &methodTag, const QString &id
     MethodType method = EXTRACT_TAG(MethodType, methodTag, "type");
     MethodUse use = EXTRACT_TAG(MethodUse, methodTag, "use");
     if (verifyMethodTag(methodTag) && method != -1 && use != -1) {
+		cache->update(method, use);
         emit archivingMethodChanged(method, use, id);
         return true;
     } else return false;
@@ -534,5 +579,11 @@ void JT_Archive::updateStorage(const JT_Archive::MethodType method, const JT_Arc
     INSERT_TAG(MethodUse, tag, "use", use);
     QDomElement update = uniformUpdate(tag);
     send(update);
+}
+
+bool JT_Archive::isLocalHistoryEnabled() const
+{
+	return !cache->serverSideEnabled || cache->serverPreference == MethodUse_forbid
+			|| cache->serverPreference == MethodUse_concede && cache->localPreference == MethodUse_prefer;
 }
 
