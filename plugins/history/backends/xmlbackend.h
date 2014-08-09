@@ -18,10 +18,35 @@
 #ifndef XMLBACKEND_H
 #define XMLBACKEND_H
 
-class XMLBackend
+#include <QtCore/QDate>
+#include <QtCore/QList>
+#include <QtXml/QDomDocument>
+
+#include "kopetemessage.h"
+
+#include "historybackend.h"
+
+class QTimer;
+
+class XMLBackend : public HistoryBackend
 {
 public:
 	XMLBackend();
+	virtual ~XMLBackend();
+
+	void appendMessage( const Kopete::Message *msg );
+	QList<Kopete::Message> readMessages( QDate date );
+
+private:
+	/**
+	 * the timer used to save the file
+	 */
+   QTimer *m_saveTimer;
+   QDomDocument m_toSaveDocument;
+   QString m_toSaveFileName;
+   unsigned int m_saveTimerTime; //time in ms between each save
+
+   void save();
 };
 
 #endif // XMLBACKEND_H

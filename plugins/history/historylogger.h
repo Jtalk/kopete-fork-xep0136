@@ -21,7 +21,6 @@
 #include <QtCore/QObject>
 #include <QtCore/QList>
 #include <QtCore/QMap>
-#include <QtXml/QDomDocument>
 
 class QDate;
 class QTimer;
@@ -29,6 +28,8 @@ class QTimer;
 namespace Kopete { class Message; }
 namespace Kopete { class Contact; }
 namespace Kopete { class MetaContact; }
+
+class HistoryBackend;
 
 /**
  * One hinstance of this class is opened for every Kopete::ChatSession,
@@ -127,14 +128,21 @@ public:
 	static QString getFileName(const Kopete::Contact* , QDate date);
 
 private:
+	HistoryBackend *m_backend;
+
 	bool m_hideOutgoing;
 	Qt::CaseSensitivity m_filterCaseSensitive;
 	bool m_filterRegExp;
 	QString m_filter;
 
+	/**
+	 * @brief initBackend choses proper history backend for this logger based on preferences
+	 * and availability lists and initializes m_backend this value chosen.
+	 */
+	void initBackend();
 
 	/*
-	 *contais all QDomDocument, for a KC, for a specified Month
+	 * contais all QDomDocument, for a KC, for a specified Month
 	 */
 	QMap<const Kopete::Contact*,QMap<unsigned int , QDomDocument> > m_documents;
 
@@ -170,7 +178,6 @@ private:
 	int m_cachedMonth;
 
 
-
 	/*
 	 * the metacontact we are using
 	 */
@@ -182,15 +189,7 @@ private:
 	QMap<const Kopete::Contact*, QDomElement>  m_oldElements;
 	unsigned int m_oldMonth;
 	Sens m_oldSens;
-	 
-	 /**
-	  * the timer used to save the file
-	  */ 
-	QTimer *m_saveTimer;
-	QDomDocument m_toSaveDocument;
-	QString m_toSaveFileName;
-	unsigned int m_saveTimerTime; //time in ms between each save
-	
+
 	/**
 	 * workaround for the 31 midnight bug.
 	 * it contains the number of the current month.

@@ -13,6 +13,7 @@ set(kopete_history_PART_SRCS
    historyimport.cpp
    oldhistory.cpp
 
+   backends/historybackend.cpp
    backends/xmlbackend.cpp )
 
 kde4_add_ui_files(kopete_history_PART_SRCS historyviewer.ui )
