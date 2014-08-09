@@ -1,5 +1,5 @@
 /*
-	historyplugin.h
+	oldhistory.h
 
 	Copyright (c) 2003-2005 by Olivier Goffart       <ogoffart at kde.org>
 			  (c) 2003 by Stefan Gehn                 <metz AT gehn.net>
