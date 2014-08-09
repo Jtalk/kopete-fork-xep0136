@@ -3,7 +3,6 @@ include_directories(
 ${KOPETE_INCLUDES} 
 )
 
-
 ########### next target ###############
 
 set(kopete_history_PART_SRCS 
@@ -12,7 +11,9 @@ set(kopete_history_PART_SRCS
    historylogger.cpp
    historyguiclient.cpp
    historyimport.cpp
-   oldhistory.cpp )
+   oldhistory.cpp
+
+   backends/xmlbackend.cpp )
 
 kde4_add_ui_files(kopete_history_PART_SRCS historyviewer.ui )
 
