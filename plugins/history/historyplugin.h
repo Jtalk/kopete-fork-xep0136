@@ -68,15 +68,6 @@ class HistoryPlugin : public Kopete::Plugin
 		HistoryPlugin( QObject *parent, const QStringList &args );
 		~HistoryPlugin();
 
-		/**
-		 * convert the Kopete 0.6 / 0.5 history to the new format
-		 */
-		static void convertOldHistory();
-		/**
-		 * return true if an old history has been detected, and no new ones
-		 */
-		static bool detectOldHistory();
-		
 		void messageDisplayed(const Kopete::Message &msg);
 		
 	private slots:

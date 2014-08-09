@@ -9,10 +9,10 @@ ${KOPETE_INCLUDES}
 set(kopete_history_PART_SRCS 
    historyplugin.cpp 
    historydialog.cpp 
-   historylogger.cpp 
-   converter.cpp 
+   historylogger.cpp
    historyguiclient.cpp
-   historyimport.cpp )
+   historyimport.cpp
+   oldhistory.cpp )
 
 kde4_add_ui_files(kopete_history_PART_SRCS historyviewer.ui )
 
