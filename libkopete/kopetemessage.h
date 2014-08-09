@@ -414,7 +414,7 @@ public:
 	 * The @ref ChatSession is only set if the message is already passed by the manager.
 	 * We should trust this only in aboutToSend/aboutToReceive signals
 	 */
-	 ChatSession *manager() const ;
+	 ChatSession *manager() const;
 
 	 /**
 	  * @brief Set the messagemanager for this message.
