@@ -37,16 +37,17 @@ public:
 	void appendMessage( const Kopete::Message *msg );
 	QList<Kopete::Message> readMessages( QDate date );
 
-private:
-	/**
-	 * the timer used to save the file
-	 */
-   QTimer *m_saveTimer;
-   QDomDocument m_toSaveDocument;
-   QString m_toSaveFileName;
-   unsigned int m_saveTimerTime; //time in ms between each save
+	QList<int> getDaysForMonth( QDate date, const QList<const Kopete::Contact*> &contacts );
 
-   void save();
+private:
+	static QString getFileName( const Kopete::Contact *contact, QDate date );
+
+	QTimer *m_saveTimer;
+	QDomDocument m_toSaveDocument;
+	QString m_toSaveFileName;
+	unsigned int m_saveTimerTime; //time in ms between each save
+
+	void save();
 };
 
 #endif // XMLBACKEND_H

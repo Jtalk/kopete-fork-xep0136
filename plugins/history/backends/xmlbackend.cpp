@@ -17,6 +17,9 @@
 
 #include "xmlbackend.h"
 
+#include <QtCore/QFile>
+#include <QtCore/QSet>
+
 XMLBackend::XMLBackend()
 	: HistoryBackend()
 {
@@ -212,4 +215,73 @@ QList<Kopete::Message> XMLBackend::readMessages( QDate date )
 	}
 
 	return messages;
+}
+
+
+QString XMLBackend::getFileName( const Kopete::Contact *contact, QDate date ) const
+{
+
+	QString name = contact->protocol()->pluginId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
+		QString::fromLatin1( "/" ) +
+		contact->account()->accountId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
+		QString::fromLatin1( "/" ) +
+	contact->contactId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
+		date.toString(".yyyyMM");
+
+	QString filename = KStandardDirs::locateLocal( "data", QString::fromLatin1( "kopete/logs/" ) + name+ QString::fromLatin1( ".xml" ) ) ;
+
+	//Check if there is a kopete 0.7.x file
+	QFileInfo fi(filename);
+	if (!fi.exists())
+	{
+		name = contact->protocol()->pluginId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
+			QString::fromLatin1( "/" ) +
+			contact->contactId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
+			date.toString(".yyyyMM");
+
+		QString filename2 = KStandardDirs::locateLocal( "data", QString::fromLatin1( "kopete/logs/" ) + name+ QString::fromLatin1( ".xml" ) ) ;
+
+		QFileInfo fi2(filename2);
+		if (fi2.exists())
+			return filename2;
+	}
+
+	return filename;
+}
+
+QList<int> XMLBackend::getDaysForMonth( QDate date, const QList<const Kopete::Contact*> &contacts )
+{
+	QRegExp rxTime("time=\"(\\d+) \\d+:\\d+(:\\d+)?\""); //(with a 0.7.x compatibility)
+
+	QList<int> dayList;
+	QSet<int> processed;
+
+	foreach(Kopete::Contact *contact, contacts)
+	{
+		QString contactFileName = getFileName( contact, date );
+		QFile file( contactFileName );
+
+		if (!file.open( QIODevice::ReadOnly ))
+			continue;
+
+		// TODO: split file string into pieces for large files
+		QTextStream stream( &file );
+		QString fullText = stream.readAll();
+		file.close();
+
+		int pos = 0;
+		while ((pos = rxTime.indexIn( fullText, pos )) != -1)
+		{
+			pos += rxTime.matchedLength();
+			int day = rxTime.capturedTexts()[1].toInt();
+
+			if (!processed.contains( day ))
+			{
+				dayList.append( day );
+				processed.insert( day );
+			}
+		}
+	}
+
+	return dayList;
 }

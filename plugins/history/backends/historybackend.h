@@ -18,14 +18,19 @@
 #ifndef HISTORYBACKEND_H
 #define HISTORYBACKEND_H
 
+#include <QtCore/QDate>
+#include <QtCore/QList>
+
 class HistoryBackend
 {
 public:
 	HistoryBackend();
 	virtual ~HistoryBackend();
 
-	virtual void appendMessage( const Kopete::Message *msg ) = 0;
-	virtual QList<Kopete::Message> readMessages( QDate date ) = 0;
+	virtual void appendMessage( const HistoryMessage *msg ) = 0;
+	virtual QList<HistoryMessage> readMessages( QDate date ) = 0;
+
+	virtual QList<int> getDaysForMonth( QDate date, const QList<const Kopete::Contact*> &contacts ) = 0;
 
 protected:
 	virtual void save() = 0;
