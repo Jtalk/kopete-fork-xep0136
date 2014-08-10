@@ -17,6 +17,8 @@
 
 #include "historylogger.h"
 
+#include <iterator>
+
 #include <QtCore/QRegExp>
 #include <QtCore/QFile>
 #include <QtCore/QDir>
@@ -260,37 +262,158 @@ void HistoryLogger::appendMessage( const Kopete::Message &msg , const Kopete::Co
 	m_backend->appendMessage( msg );
 }
 
+// Reverse iterator inherits base iterator but using them the same way does not look possible, so we need this.
+static bool ends(const QList<HistoryMessage> &messages, const QList<HistoryMessage>::iterator &position, HistoryLogger::Sens sens)
+{
+	typedef std::reverse_iterator<QList<HistoryMessage>::iterator> reverse_iterator;
+
+	if (sens == HistoryLogger::Chronological)
+		return position == messages.end();
+	else
+		return reverse_iterator(position) == reverse_iterator(messages.begin());
+}
+
+static void inc(QList<HistoryMessage>::iterator &position, HistoryLogger::Sens sens)
+{
+	typedef std::reverse_iterator<QList<HistoryMessage>::iterator> reverse_iterator;
+
+	if (sens == HistoryLogger::Chronological)
+		++position;
+	else
+		--position;
+}
+
+static HistoryMessage& extract(QList<HistoryMessage>::iterator &position, HistoryLogger::Sens sens)
+{
+	typedef std::reverse_iterator<QList<HistoryMessage>::iterator> reverse_iterator;
+
+	if (sens == HistoryLogger::Chronological)
+		return *position;
+	else
+		return *std::prev(position);
+}
+
+// Thanks to not-so-smart C++ 2003 standard library designers we cannot just create
+// an std::binary_function pointer and store either std::less or std::greater in it.
+// But thanks to smart C99 designers we can create a function pointer storing one
+// of those function beneath. Once Kopete is migrated to C++ 2011, we can drop all
+// this stuff and replace it with simple std::function<bool(QDateTime, QDateTime)>.
+static bool less(const QDateTime &fst, const QDateTime &snd)
+{
+	return fst < snd;
+}
+
+static bool greater(const QDateTime &fst, const QDateTime &snd)
+{
+	return fst > snd;
+}
+
+HistoryLogger::HistoryRange HistoryLogger::findOldestMetaContactMessages(const QDateTime &startFrom)
+{
+	/**
+	 * TODO: explaination
+	 */
+
+	typedef QList<HistoryMessage> Messages;
+	typedef bool (*Comparator)(const QDateTime &fst, const QDateTime &snd);
+
+	HistoryRange result;
+	QList<Kopete::Contact*> contacts = m_metaContact->contacts();
+	Comparator lessCompare = sens == Chronological ? less : greater;
+	Comparator greaterCompare = sens == Chronological ? greater : less;
+
+	QDateTime startTime = startFrom;
+	QDateTime endTime;
+
+	foreach(Kopete::Contact *contact, contacts)
+	{
+		MessagesPair pair = readContactMessages( contact );
+
+		Messages &contactMessages = pair.first;
+		Messages::iterator &contactMessagesPosition = pair.second;
+
+		if (ends(contactMessages, contactMessagesPosition, sens))
+			continue;
+
+		HistoryMessage &msg = extract(contactMessagesPosition, sens);
+
+		QDateTime msgTime = msg.time;
+
+		// We use isNull here instead of isValid because msgTime must always be valid thus
+		// the real matter of this check is to detect whether startTime and endTime were initialized.
+		// QDateTime default constructor initializes a null-object, so isNull would be enough
+		// making checking much faster at the same time.
+		if (!startTime.isNull() || lessCompare( msgTime, startTime ))
+		{
+			result.currentContact = contact;
+			result.startTime = msgTime;
+			continue;
+
+		}
+
+		if (!endTime.isNull() || greaterCompare( msgTime, endTime ))
+		{
+			result.nextContact = contact;
+			result.nextTime = msgTime;
+			continue;
+		}
+	}
+
+	return result;
+}
+
+HistoryLogger::MessagesPair HistoryLogger::readContactMessages(Kopete::Contact *contact)
+{
+	if (m_currentElements.contains( contact ))
+		return m_currentElements[ contact ];
+
+	MessagesPair result;
+	result.first = m_backend->readMessages( contact, m_currentMonth );
+	result.second = result.first.end();
+
+	if (result.first.isEmpty())
+		return result;
+
+	if (sens == Chronological)
+		result.second = messages.begin();
+
+	m_currentElements[ contact ] = result;
+
+	return result;
+}
+
 QList<Kopete::Message> HistoryLogger::readMessages( QDate date )
 {
 	return m_backend->readMessages( date );
 }
 
 QList<Kopete::Message> HistoryLogger::readMessages(int lines,
-	const Kopete::Contact *c, Sens sens, bool reverseOrder, bool colorize)
+	const Kopete::Contact *contact, Sens sens, bool reverseOrder, bool colorize)
 {
-	//QDate dd =  QDate::currentDate().addMonths(0-m_currentMonth);
-
 	QList<Kopete::Message> messages;
 
-	// A regexp useful for this function
+	// TODO: Handy comment about this expression's purpose.
 	QRegExp rxTime("(\\d+) (\\d+):(\\d+)($|:)(\\d*)"); //(with a 0.7.x compatibility)
 
 	if (!m_metaContact)
-	{ //this may happen if the contact has been moved, and the MC deleted
-		if (c && c->metaContact())
-			m_metaContact = c->metaContact();
+	{
+		//this may happen if the contact has been moved, and the MC deleted
+		if (contact && contact->metaContact())
+			m_metaContact = contact->metaContact();
 		else
 			return messages;
 	}
 
-	if (c && !m_metaContact->contacts().contains(const_cast<Kopete::Contact*>(c)) )
+	if (contact && !m_metaContact->contacts().contains( const_cast<Kopete::Contact*>(contact) ))
 		return messages;
 
-	if (sens == Default )  //if no sens are selected, just continue in the previous sens
-		sens = m_oldSens ;
+	if (sens == Default )  //if no sens selected, just continue with the previous one
+		sens = m_oldSens;
+
 	if ( m_oldSens != Default && sens != m_oldSens )
-	{ //we changed our sens! so retrieve the old position to fly in the other way
-		m_currentElements= m_oldElements;
+	{
+		// we changed our sens! so retrieve the old position to fly in the other way
+		m_currentElements = m_oldElements;
 		m_currentMonth = m_oldMonth;
 	}
 	else
@@ -309,18 +432,15 @@ QList<Kopete::Message> HistoryLogger::readMessages(int lines,
 	// - if a contact is given, or the metacontact contain only one contact,  just read the history.
 	// - else, merge the history
 
-	//the merging algoritm is the following:
-	// we see what contact we have to read first, and we look at the firt date before another contact
-	// has a message with a bigger date.
+	// the merging algoritm is the following:
+	//
 
 	QDateTime timeLimit;
-	const Kopete::Contact *currentContact = c;
-	if (!c && m_metaContact->contacts().count()==1)
+	const Kopete::Contact *currentContact = contact;
+	if (!contact && m_metaContact->contacts().count() == 1)
 		currentContact = m_metaContact->contacts().first();
-	else if (!c && m_metaContact->contacts().count()== 0)
-	{
+	else if (!contact && m_metaContact->contacts().count() == 0)
 		return messages;
-	}
 
 	while(messages.count() < lines)
 	{
@@ -328,52 +448,9 @@ QList<Kopete::Message> HistoryLogger::readMessages(int lines,
 		QDomElement msgElem; //here is the message element
 		QDateTime timestamp; //and the timestamp of this message
 
-		if (!c && m_metaContact->contacts().count()>1)
-		{ //we have to merge the differents subcontact history
-			QList<Kopete::Contact*> ct = m_metaContact->contacts();
-
-			foreach(Kopete::Contact *contact, ct)
-			{ //we loop over each contact. we are searching the contact with the next message with the smallest date,
-			  // it will becomes our current contact, and the contact with the mext message with the second smallest
-			  // date, this date will bocomes the limit.
-
-				QDomNode n;
-				if (m_currentElements.contains(contact))
-					n = m_currentElements[contact];
-				else  //there is not yet "next message" register, so we will take the first  (for the current month)
-				{
-					QDomDocument doc = getDocument(contact,m_currentMonth);
-					QDomElement docElem = doc.documentElement();
-					n= (sens==Chronological)?docElem.firstChild() : docElem.lastChild();
-
-					//i can't drop the root element
-					workaround.append(docElem);
-				}
-				while(!n.isNull())
-				{
-					QDomElement  msgElem2 = n.toElement();
-					if ( !msgElem2.isNull() && msgElem2.tagName()=="msg")
-					{
-						rxTime.indexIn(msgElem2.attribute("time"));
-						QDate d = QDate::currentDate().addMonths(0-m_currentMonth);
-						QDateTime dt( QDate(d.year() , d.month() , rxTime.cap(1).toUInt()), QTime( rxTime.cap(2).toUInt() , rxTime.cap(3).toUInt(), rxTime.cap(5).toUInt()  ) );
-						if (!timestamp.isValid() || ((sens==Chronological )? dt < timestamp : dt > timestamp) )
-						{
-							timeLimit = timestamp;
-							timestamp = dt;
-							msgElem = msgElem2;
-							currentContact = contact;
-
-						}
-						else if (!timeLimit.isValid() || ((sens==Chronological) ? timeLimit > dt : timeLimit < dt) )
-						{
-							timeLimit = dt;
-						}
-						break;
-					}
-					n=(sens==Chronological)? n.nextSibling() : n.previousSibling();
-				}
-			}
+		if (!contact && m_metaContact->contacts().count() > 1)
+		{
+			QList<Kopete::Message> metaContactMessages = readMetaContactMessages();
 		}
 		else  //we don't have to merge the history. just take the next item in the contact
 		{
@@ -412,7 +489,7 @@ QList<Kopete::Message> HistoryLogger::readMessages(int lines,
 			}
 			else
 			{
-				if (m_currentMonth >= getFirstMonth(c))
+				if (m_currentMonth >= getFirstMonth(contact))
 					break; //we don't have any other messages to show
 				setCurrentMonth(m_currentMonth+1);
 			}
@@ -494,7 +571,7 @@ QList<Kopete::Message> HistoryLogger::readMessages(int lines,
 				{
 					if (msgElem.tagName() == "msg")
 					{
-						if (!c && (m_metaContact->contacts().count() > 1))
+						if (!contact && (m_metaContact->contacts().count() > 1))
 						{
 							// In case of hideoutgoing messages, it is faster to do
 							// this, so we don't parse the date if it is not needed

@@ -48,6 +48,18 @@ public:
 	 */
 	enum Sens { Default , Chronological , AntiChronological };
 
+	struct HistoryRange
+	{
+		Kopete::Contact *currentContact;
+		QDateTime startTime;
+
+		Kopete::Contact *nextContact;
+		QDateTime nextTime;
+
+		HistoryRange(): currentContact(0L), nextContact(0L)
+		{}
+	};
+
 	/**
 	 * Constructor, takes the contact, and the color of messages
 	 */
@@ -89,8 +101,8 @@ public:
 	 * from Kopete::Contact @param c in the given @param sens
 	 */
 	QList<Kopete::Message> readMessages(int lines,
-		const Kopete::Contact *c=0, Sens sens=Default,
-		bool reverseOrder=false, bool colorize=true);
+		const Kopete::Contact *contact = 0L, Sens sens=Default,
+		bool reverseOrder = false, bool colorize = true);
 
 	/** 
 	 * Same as the following, but for one date. I did'nt reuse the above function
@@ -128,6 +140,8 @@ public:
 	static QString getFileName(const Kopete::Contact* , QDate date);
 
 private:
+	typedef QPair<QList<HistoryMessage>, QList<HistoryMessage>::iterator> MessagesPair;
+
 	HistoryBackend *m_backend;
 
 	bool m_hideOutgoing;
@@ -148,12 +162,12 @@ private:
 
 	/**
 	 * Contains the current message.
-	 * in fact, this is the next, still not showed
+	 * in fact, this is the next, still not shown
 	 */
 	QMap<const Kopete::Contact*, QDomElement>  m_currentElements;
 
 	/**
-	 * Get the document, open it is @param canload is true, contain is set to false if the document
+	 * Get the document, open it if @param canLoad is true, contain is set to false if the document
 	 * is not already contained
 	 */
 	QDomDocument getDocument(const Kopete::Contact *c, unsigned int month , bool canLoad=true , bool* contain=0L);
@@ -203,6 +217,9 @@ private:
 	 * prevent crashes
 	 */
 	QList<QDomElement> workaround;
+
+	HistoryRange findOldestMetaContactMessages(const QDateTime &startFrom);
+	MessagesPair readContactMessages(Kopete::Contact *contact);
 
 private slots:
 	/**
