@@ -18,6 +18,7 @@
 #ifndef HISTORYLOGGER_H
 #define HISTORYLOGGER_H
 
+#include <QtCore/QDateTime>
 #include <QtCore/QObject>
 #include <QtCore/QList>
 #include <QtCore/QMap>
@@ -97,47 +98,22 @@ public:
 	void appendMessage( const Kopete::Message &msg , const Kopete::Contact *c=0L );
 
 	/**
-	 * read @param lines message from the current position
-	 * from Kopete::Contact @param c in the given @param sens
+	 * @brief readMessagesFrom returns messages for only one @param contact from
+	 * metacontact for @param date specified
 	 */
-	QList<Kopete::Message> readMessages(int lines,
-		const Kopete::Contact *contact = 0L, Sens sens=Default,
-		bool reverseOrder = false, bool colorize = true);
-
-	/** 
-	 * Same as the following, but for one date. I did'nt reuse the above function
-	 * because its structure is really different.
-	 * Read all the messages for the given @param date
-	 */
-	QList<Kopete::Message> readMessages(QDate date);
+	QList<HistoryMessage> readMessagesFrom( const Kopete::Contact *contact, QDate date);
 
 	/**
-	 * The pausition is set to the last message
+	 * @brief readMessages returns messages for all contacts in metacontact for
+	 * @param date specified.
 	 */
-	void setPositionToLast();
-
-	/**
-	 * The position is set to the first message
-	 */
-	void setPositionToFirst();
-
-	/**
-	 * Set the current month  (in number of month since the actual month)
-	 */
-	void setCurrentMonth(int month);
+	QList<HistoryMessage> readMessages(QDate date);
 
 	/**
 	 * @return The list of the days for which there is a log for m_metaContact for month of
 	 * @param date (don't care of the day)
 	 */
 	QList<int> getDaysForMonth(QDate date);
-
-	/**
-	 * Get the filename of the xml file which contains the history from the
-	 * contact in the specified @param date. Specify @param date in order to get the filename for
-	 * the given date.year() date.month().
-	 */
-	static QString getFileName(const Kopete::Contact* , QDate date);
 
 private:
 	typedef QPair<QList<HistoryMessage>, QList<HistoryMessage>::iterator> MessagesPair;
@@ -218,8 +194,10 @@ private:
 	 */
 	QList<QDomElement> workaround;
 
-	HistoryRange findOldestMetaContactMessagesFrom(const QDateTime &startFrom);
-	MessagesPair readContactMessages(Kopete::Contact *contact);
+	HistoryRange findOldestMetaContactMessagesFrom( const QDateTime &startFrom );
+	HistoryMessages readContactMessages( Kopete::Contact *contact, QDate date = QDate(), int lines = 0 );
+
+	bool nextMonth( Sens sens );
 
 private slots:
 	/**

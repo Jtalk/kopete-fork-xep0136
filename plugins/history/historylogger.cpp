@@ -41,6 +41,7 @@
 #include "kopetechatsession.h"
 
 #include "historyconfig.h"
+#include "historyplugin.h"
 #include "backends/historybackend.h"
 #include "backends/xmlbackend.h"
 
@@ -106,31 +107,6 @@ void HistoryLogger::initBackend()
 #warning "Proper backend chosing"
 	m_backend = new XMLBackend();
 }
-
-void HistoryLogger::setPositionToLast()
-{
-	setCurrentMonth(0);
-	m_oldSens = AntiChronological;
-	m_oldMonth = 0;
-	m_oldElements.clear();
-}
-
-
-void HistoryLogger::setPositionToFirst()
-{
-	setCurrentMonth( getFirstMonth() );
-	m_oldSens = Chronological;
-	m_oldMonth = m_currentMonth;
-	m_oldElements.clear();
-}
-
-
-void HistoryLogger::setCurrentMonth(int month)
-{
-	m_currentMonth = month;
-	m_currentElements.clear();
-}
-
 
 QDomDocument HistoryLogger::getDocument(const Kopete::Contact *c, unsigned int month , bool canLoad , bool* contain)
 {
@@ -259,6 +235,7 @@ void HistoryLogger::appendMessage( const Kopete::Message &msg , const Kopete::Co
 		return;
 	}
 
+	m_cache->appendMessage( msg );
 	m_backend->appendMessage( msg );
 }
 
@@ -362,277 +339,64 @@ HistoryLogger::HistoryRange HistoryLogger::findOldestMetaContactMessagesFrom(con
 	return result;
 }
 
-HistoryLogger::MessagesPair HistoryLogger::readContactMessages(Kopete::Contact *contact)
+HistoryMessages HistoryLogger::readContactMessages(Kopete::Contact *contact, QDate date, int lines )
 {
-	if (m_currentElements.contains( contact ))
-		return m_currentElements[ contact ];
+	HistoryMessages *found = m_cache->find( date );
+	if (found)
+		return *found;
 
-	MessagesPair result;
-	result.first = m_backend->readMessages( contact, m_currentMonth );
-	result.second = result.first.end();
+	HistoryMessages result = m_backend->readMessages( contact, date );
 
-	if (result.first.isEmpty())
-		return result;
-
-	if (sens == Chronological)
-		result.second = messages.begin();
-
-	m_currentElements[ contact ] = result;
+	m_cache->add( result, date );
 
 	return result;
 }
 
-QList<Kopete::Message> HistoryLogger::readMessages( QDate date )
+HistoryMessages HistoryLogger::readMessages( QDate date )
 {
-	return m_backend->readMessages( date );
+	HistoryMessages *found = m_metacontactCache->find( date );
+	if (found)
+		return *found;
+	HistoryMessages result = readMetacontactMessages( date );
+	m_metacontactCache->add( result, date );
+	return result;
 }
 
-QList<Kopete::Message> HistoryLogger::readMessages(int lines,
-	const Kopete::Contact *contact, Sens sens, bool reverseOrder, bool colorize)
+HistoryMessages HistoryLogger::readMessagesFrom( const Kopete::Contact *contact, QDate date )
 {
-	QList<Kopete::Message> messages;
+	if (!contact)
+	{
+		kError(HistoryPlugin::LOG_ID) << "Null contact is passed into HistoryLogger::readMessagesFrom";
+		return HistoryMessages();
+	}
 
-	// TODO: Handy comment about this expression's purpose.
-	QRegExp rxTime("(\\d+) (\\d+):(\\d+)($|:)(\\d*)"); //(with a 0.7.x compatibility)
+	if (!m_metaContact && contact->metaContact())
+	{
+		kDebug(HistoryPlugin::LOG_ID) << "Meta contact information is lost, restoring from contact " << contact->contactId();
+		m_metaContact = contact->metaContact();
+	}
 
 	if (!m_metaContact)
 	{
-		//this may happen if the contact has been moved, and the MC deleted
-		if (contact && contact->metaContact())
-			m_metaContact = contact->metaContact();
-		else
-			return messages;
+		kWarning(HistoryPlugin::LOG_ID) << "No meta contact for contact " << contact->contactId() << " in history request";
+		return HistoryMessages();
 	}
 
-	if (contact && !m_metaContact->contacts().contains( const_cast<Kopete::Contact*>(contact) ))
-		return messages;
-
-	if (sens == Default )  //if no sens selected, just continue with the previous one
-		sens = m_oldSens;
-
-	if ( m_oldSens != Default && sens != m_oldSens )
+	if (!m_metaContact->contacts().contains( const_cast<Kopete::Contact*>(contact) ))
 	{
-		// we changed our sens! so retrieve the old position to fly in the other way
-		m_currentElements = m_oldElements;
-		m_currentMonth = m_oldMonth;
-	}
-	else
-	{
-		m_oldElements = m_currentElements;
-		m_oldMonth = m_currentMonth;
-	}
-	m_oldSens = sens;
-
-	//getting the color for messages:
-	QColor fgColor = HistoryConfig::history_color();
-
-	//Hello guest!
-
-	//there are two algoritms:
-	// - if a contact is given, or the metacontact contain only one contact,  just read the history.
-	// - else, merge the history
-
-	// the merging algoritm is the following:
-	//
-
-	QDateTime timeLimit;
-	const Kopete::Contact *currentContact = contact;
-	if (!contact && m_metaContact->contacts().count() == 1)
-		currentContact = m_metaContact->contacts().first();
-	else if (!contact && m_metaContact->contacts().count() == 0)
-		return messages;
-
-	while(messages.count() < lines)
-	{
-		timeLimit = QDateTime();
-		QDomElement msgElem; //here is the message element
-		QDateTime timestamp; //and the timestamp of this message
-
-		if (!contact && m_metaContact->contacts().count() > 1)
-		{
-			QList<Kopete::Message> metaContactMessages = readMetaContactMessages();
-		}
-		else  //we don't have to merge the history. just take the next item in the contact
-		{
-			if (m_currentElements.contains(currentContact))
-				msgElem = m_currentElements[currentContact];
-			else
-			{
-				QDomDocument doc = getDocument(currentContact,m_currentMonth);
-				QDomElement docElem = doc.documentElement();
-				QDomNode n= (sens==Chronological)?docElem.firstChild() : docElem.lastChild();
-				msgElem = QDomElement();
-				while(!n.isNull()) //continue until we get a msg
-				{
-					msgElem = n.toElement();
-					if ( !msgElem.isNull() && msgElem.tagName()=="msg")
-					{
-						m_currentElements[currentContact]=msgElem;
-						break;
-					}
-					n=(sens==Chronological)? n.nextSibling() : n.previousSibling();
-				}
-
-				//i can't drop the root element
-				workaround.append(docElem);
-			}
-		}
-
-
-		if (msgElem.isNull()) //we don't find ANY messages in any contact for this month. so we change the month
-		{
-			if (sens==Chronological)
-			{
-				if (m_currentMonth <= 0)
-					break; //there are no other messages to show. break even if we don't have nb messages
-				setCurrentMonth(m_currentMonth-1);
-			}
-			else
-			{
-				if (m_currentMonth >= getFirstMonth(contact))
-					break; //we don't have any other messages to show
-				setCurrentMonth(m_currentMonth+1);
-			}
-			continue; //begin the loop from the bottom, and find currentContact and timeLimit again
-		}
-
-		while(
-			(messages.count() < lines) &&
-			!msgElem.isNull() &&
-			(!timestamp.isValid() || !timeLimit.isValid() ||
-				((sens==Chronological) ? timestamp <= timeLimit : timestamp >= timeLimit)
-			))
-		{
-			// break this loop, if we have reached the correct number of messages,
-			// if there are no more messages for this contact, or if we reached
-			// the timeLimit msgElem is the next message, still not parsed, so
-			// we parse it now
-
-			Kopete::Message::MessageDirection dir = (msgElem.attribute("in") == "1") ?
-				Kopete::Message::Inbound : Kopete::Message::Outbound;
-
-			if (!m_hideOutgoing || dir != Kopete::Message::Outbound)
-			{ //parse only if we don't hide it
-
-				if ( m_filter.isNull() || ( m_filterRegExp? msgElem.text().contains(QRegExp(m_filter,m_filterCaseSensitive)) : msgElem.text().contains(m_filter,m_filterCaseSensitive) ))
-				{
-					Q_ASSERT(currentContact);
-					QString f = msgElem.attribute("from" );
-					const Kopete::Contact *from = f.isNull() ? 0L : currentContact->account()->contacts().value(f);
-
-					if ( !from )
-						from = (dir == Kopete::Message::Inbound) ? currentContact : currentContact->account()->myself();
-
-					Kopete::ContactPtrList to;
-					to.append( dir==Kopete::Message::Inbound ? currentContact->account()->myself() : const_cast<Kopete::Contact*>(currentContact) );
-
-					if (!timestamp.isValid())
-					{
-						//parse timestamp only if it was not already parsed
-						rxTime.indexIn(msgElem.attribute("time"));
-						QDate d = QDate::currentDate().addMonths(0-m_currentMonth);
-						timestamp = QDateTime( QDate(d.year() , d.month() , rxTime.cap(1).toUInt()), QTime( rxTime.cap(2).toUInt() , rxTime.cap(3).toUInt() , rxTime.cap(5).toUInt() ) );
-					}
-
-					Kopete::Message msg(from, to);
-					msg.setTimestamp( timestamp );
-					msg.setDirection( dir );
-
-					if (colorize)
-					{
-						msg.setHtmlBody( QString::fromLatin1("<span style=\"color:%1\" title=\"%2\">%3</span>")
-							.arg( fgColor.name(), timestamp.toString(Qt::LocalDate), msgElem.text() ));
-						msg.setForegroundColor( fgColor );
-						msg.addClass( "history" );
-					}
-					else
-					{
-						msg.setHtmlBody( QString::fromLatin1("<span title=\"%1\">%2</span>")
-							.arg( timestamp.toString(Qt::LocalDate), msgElem.text() ));
-					}
-
-					if (reverseOrder)
-						messages.prepend(msg);
-					else
-						messages.append(msg);
-				}
-			}
-
-			//here is the point of workaround. If i drop the root element, this crashes
-			//get the next message
-			QDomNode node = ( (sens==Chronological) ? msgElem.nextSibling() :
-				msgElem.previousSibling() );
-
-			msgElem = QDomElement(); //n.toElement();
-			while (!node.isNull() && msgElem.isNull())
-			{
-				msgElem = node.toElement();
-				if (!msgElem.isNull())
-				{
-					if (msgElem.tagName() == "msg")
-					{
-						if (!contact && (m_metaContact->contacts().count() > 1))
-						{
-							// In case of hideoutgoing messages, it is faster to do
-							// this, so we don't parse the date if it is not needed
-							QRegExp rx("(\\d+) (\\d+):(\\d+):(\\d+)");
-							rx.indexIn(msgElem.attribute("time"));
-
-							QDate d = QDate::currentDate().addMonths(0-m_currentMonth);
-							timestamp = QDateTime(
-								QDate(d.year(), d.month(), rx.cap(1).toUInt()),
-								QTime( rx.cap(2).toUInt(), rx.cap(3).toUInt() ) );
-						}
-						else
-							timestamp = QDateTime(); //invalid
-					}
-					else
-						msgElem = QDomElement();
-				}
-
-				node = (sens == Chronological) ? node.nextSibling() :
-					node.previousSibling();
-			}
-			m_currentElements[currentContact]=msgElem;  //this is the next message
-		}
+		kWarning(HistoryPlugin::LOG_ID) << "History requested for contact " << contact->contactId() << " which does not belong to metacontact associated with logger";
+		return HistoryMessages();
 	}
 
-	if (messages.count() < lines)
-		m_currentElements.clear(); //current elements are null this can't be allowed
+	HistoryCache &cache = m_contactsCache[ contact ];
+	HistoryMessages *found = cache.find( date );
+	if (found)
+		return *found;
 
-	return messages;
-}
+	HistoryMessages result = m_backend->readMessages( contact, date );
+	cache.add( result, date );
 
-QString HistoryLogger::getFileName(const Kopete::Contact* c, QDate date)
-{
-
-	QString name = c->protocol()->pluginId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
-		QString::fromLatin1( "/" ) +
-		c->account()->accountId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
-		QString::fromLatin1( "/" ) +
-	c->contactId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
-		date.toString(".yyyyMM");
-
-	QString filename = KStandardDirs::locateLocal( "data", QString::fromLatin1( "kopete/logs/" ) + name+ QString::fromLatin1( ".xml" ) ) ;
-
-	//Check if there is a kopete 0.7.x file
-	QFileInfo fi(filename);
-	if (!fi.exists())
-	{
-		name = c->protocol()->pluginId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
-			QString::fromLatin1( "/" ) +
-			c->contactId().replace( QRegExp( QString::fromLatin1( "[./~?*]" ) ), QString::fromLatin1( "-" ) ) +
-			date.toString(".yyyyMM");
-
-		QString filename2 = KStandardDirs::locateLocal( "data", QString::fromLatin1( "kopete/logs/" ) + name+ QString::fromLatin1( ".xml" ) ) ;
-
-		QFileInfo fi2(filename2);
-		if (fi2.exists())
-			return filename2;
-	}
-
-	return filename;
-
+	return result;
 }
 
 unsigned int HistoryLogger::getFirstMonth(const Kopete::Contact *c)
@@ -751,39 +515,13 @@ bool HistoryLogger::filterRegExp() const
 
 QList<int> HistoryLogger::getDaysForMonth(QDate date)
 {
-	QRegExp rxTime("time=\"(\\d+) \\d+:\\d+(:\\d+)?\""); //(with a 0.7.x compatibility)
-
-	QList<int> dayList;
-
-	QList<Kopete::Contact*> contacts = m_metaContact->contacts();
-
-	int lastDay = 0;
-	foreach(Kopete::Contact *contact, contacts)
+	if (!m_metaContact)
 	{
-//		kDebug() << getFileName(*it, date);
-		QFile file(getFileName(contact, date));
-		if (!file.open(QIODevice::ReadOnly))
-		{
-			continue;
-		}
-		QTextStream stream(&file);
-		QString fullText = stream.readAll();
-		file.close();
-
-		int pos = 0;
-		while( (pos = rxTime.indexIn(fullText, pos)) != -1)
-		{
-			pos += rxTime.matchedLength();
-			int day = rxTime.capturedTexts()[1].toInt();
-
-			if ( day !=lastDay && dayList.indexOf(day) == -1) // avoid duplicates
-			{
-				dayList.append(rxTime.capturedTexts()[1].toInt());
-				lastDay = day;
-			}
-		}
+		kWarning(HistoryPlugin::LOG_ID) << "Logger days for month called for null metacontact";
+		return QList<int>();
 	}
-	return dayList;
+
+	return m_backend->getDaysForMonth( date, m_metaContact->contacts() );
 }
 
 #include "historylogger.moc"
