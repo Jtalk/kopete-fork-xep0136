@@ -64,7 +64,10 @@ public:
 class HistoryPlugin : public Kopete::Plugin
 {
 	Q_OBJECT
+
 	public:
+		static const int LOG_ID = 14310;
+
 		HistoryPlugin( QObject *parent, const QStringList &args );
 		~HistoryPlugin();
 
