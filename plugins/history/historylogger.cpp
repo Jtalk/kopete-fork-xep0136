@@ -308,7 +308,7 @@ static bool greater(const QDateTime &fst, const QDateTime &snd)
 	return fst > snd;
 }
 
-HistoryLogger::HistoryRange HistoryLogger::findOldestMetaContactMessages(const QDateTime &startFrom)
+HistoryLogger::HistoryRange HistoryLogger::findOldestMetaContactMessagesFrom(const QDateTime &startFrom)
 {
 	/**
 	 * TODO: explaination

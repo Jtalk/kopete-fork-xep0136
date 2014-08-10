@@ -218,7 +218,7 @@ private:
 	 */
 	QList<QDomElement> workaround;
 
-	HistoryRange findOldestMetaContactMessages(const QDateTime &startFrom);
+	HistoryRange findOldestMetaContactMessagesFrom(const QDateTime &startFrom);
 	MessagesPair readContactMessages(Kopete::Contact *contact);
 
 private slots:
